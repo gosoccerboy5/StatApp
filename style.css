@@ -1,0 +1,45 @@
+body {
+  font-family: Helvetica Neue, sans-serif;
+  background: powderblue;
+}
+h1, h2, h3 {
+  font-weight: 300;
+}
+#data {
+  width: 50%;
+  height: 15%;
+}
+button, select {
+  padding: 5px;
+  margin: 4px;
+}
+button, select {
+  cursor: pointer;
+  background: rgb(117, 210, 117);
+  border: none;
+  border-radius: 5px;
+}
+select:disabled {
+  background: lightgrey;
+}
+button:hover {
+  background: rgb(106, 195, 106);
+}
+#widgetdisplay {
+  margin: 10px;
+  padding: 5px;
+}
+textarea, input {
+  background: rgb(162, 194, 199);
+  border: 1px solid grey;
+  outline: none;
+  border-radius: 5px;
+  font-family: inherit;
+  padding: 5px;
+}
+textarea:focus, input:focus {
+  border: 1px solid black;
+}
+td {
+  padding-right: 10px;
+}

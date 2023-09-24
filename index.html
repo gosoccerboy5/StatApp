@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <title>statapp</title>
+    <link rel="stylesheet" href="style.css"></link>
+  </head>
+  <body>
+    <h1>statapp</h1>
+    <textarea id="data" placeholder="Enter values split by commas..."></textarea>
+    <br>
+    <button id="enter">Enter</button>
+    <br>
+    <select id="widgetselect" disabled>
+      <option value="">Select a widget:</option>
+      <option value="generaldata">General Data</option>
+      <option value="frequencystats">Frequency Stats</option>
+      <option value="histogram">Histogram</option>
+      <option value="normal">Normal Distribution</option>
+    </select>
+    <div id="widgetdisplay">
+      <div id="generaldata"></div>
+      <div id="frequencystats"></div>
+      <div id="histogram"></div>
+      <div id="normal"></div>
+    </div>
+    <script src="stats.js"></script>
+  </body>
+</html>
