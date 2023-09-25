@@ -137,7 +137,91 @@ $("#frequencystats").update = function() {
 };
 
 $("#histogram").update = function() {
-  this.innerText = "nothing yet...";
+  let div = this;
+  this.innerHTML = `<span>Step: </span><input id="step"></input> <span>Show bin size?</span>
+  <input type="checkbox" checked id="binsize"></input> <span>Approximate normal curve?</span>
+  <input type="checkbox" id="normal"></input><br>`;
+  let canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 500;
+  canvas.style.width = canvas.style.height = "500px";
+  this.append(canvas);
+  function getBins(data, start, step) {
+    let bins = [0];
+    let currBin = 0;
+    for (let item of data) {
+      if (item > currBin*step + step + start) {
+        currBin += 1;
+        bins[currBin] = 0;
+      }
+      bins[currBin] += 1;
+    }
+    return bins;
+  }
+  function drawLine(ctx, x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.closePath();
+  }
+  function drawHistogram(canvas, start, step, count, freqStep, freqStepCount, bins) {
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    if (step <= 0) step = 1;
+    if (freqStep <= 0) freqStep = 1;
+    let ctx = canvas.getContext("2d");
+    let margin = 20;
+    let totalWidth = canvas.width-2*margin;
+    ctx.strokeStyle = "black";
+    drawLine(ctx, margin, canvas.width-margin, margin, margin);
+    drawLine(ctx, margin, canvas.width-margin, canvas.width-margin, canvas.width-margin);
+    for (let i = 0; i <= freqStepCount; i+=freqStep) {
+      drawLine(ctx, margin-7, canvas.height-margin-i*totalWidth/freqStepCount, margin+7, canvas.height-margin-i*totalWidth/freqStepCount);
+      ctx.textAlign = "center";
+      ctx.fillText(i, 6, canvas.height-margin-i*totalWidth/freqStepCount+3);
+    }
+    for (let i = 0; i <= count; i += 1) {
+      drawLine(ctx, margin+i*totalWidth/count, canvas.width-margin-7, margin+i*totalWidth/count, canvas.width-margin+7);
+      let height = canvas.height-margin-bins[i]*totalWidth/freqStepCount;
+      ctx.fillStyle = "steelblue";
+      ctx.fillRect(margin+i*totalWidth/count, height, totalWidth/count, bins[i]*totalWidth/freqStepCount);
+      ctx.fillStyle = "black";
+      drawLine(ctx, margin+i*totalWidth/count, height, margin+i*totalWidth/count+totalWidth/count, height);
+      drawLine(ctx, margin+i*totalWidth/count, canvas.height-margin, margin+i*totalWidth/count, height);
+      drawLine(ctx, margin+(i+1)*totalWidth/count, canvas.height-margin, margin+(i+1)*totalWidth/count, height);
+      ctx.textAlign = "center";
+      if (div.querySelector("#binsize").checked) {
+        ctx.fillText(bins[i], margin+(i+.5)*totalWidth/count, height-3);
+      }
+      ctx.fillText(trunc(i*step+start), 20+i*totalWidth/count, canvas.height);
+    }
+    if (div.querySelector("#normal").checked) {
+      let normalDistributionFn = x => ((1/Math.sqrt(2*Math.PI))*(Math.E**(-.5*(x**2))));
+      let prev = null, normalCurveStep = step*count/100, highest = Math.max(...bins);
+      for (let i = 0; i <= step*count+normalCurveStep; i+=normalCurveStep) {
+        let curr = normalDistributionFn(dataset.zScore(i+start));
+        if (prev !== null) {
+          drawLine(ctx, (i-normalCurveStep)*totalWidth/step/count+margin, canvas.height-margin-(prev*highest*totalWidth/freqStepCount/0.4), i*totalWidth/step/count+margin, canvas.height-margin-(curr*highest*totalWidth/freqStepCount/0.4))
+        }
+        prev = curr;
+      }
+    }
+  }
+  function draw() {
+    let step = div.querySelector("#step").value ? Number(div.querySelector("#step").value) : Math.ceil(dataset.range/10);
+    if (step < 0.01) step = 1;
+    div.querySelector("#step").placeholder = Math.ceil(dataset.range/10);
+    let bins = getBins(dataset.list, dataset.min, step);
+    let highestCount = Math.max(...bins);
+    let freqStepCount = Math.ceil(highestCount/5)*5, freqStep = freqStepCount/5;
+    drawHistogram(canvas, dataset.min, step, 
+      Math.ceil(dataset.range/step), freqStep, freqStepCount, bins);
+  }
+  draw();
+  [div.querySelector("#step"), div.querySelector("#normal"), div.querySelector("#binsize")].forEach(el => 
+    el.addEventListener("input", draw));
+  div.querySelector("#step").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") draw();
+  });
 };
 
 $("#normal").update = function() {

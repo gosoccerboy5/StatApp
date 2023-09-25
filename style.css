@@ -19,10 +19,11 @@ button, select {
   border: none;
   border-radius: 5px;
 }
-select:disabled {
+button:disabled, select:disabled {
   background: lightgrey;
+  cursor: default;
 }
-button:hover {
+button:hover:not(:disabled) {
   background: rgb(106, 195, 106);
 }
 #widgetdisplay {
@@ -42,4 +43,13 @@ textarea:focus, input:focus {
 }
 td {
   padding-right: 10px;
+}
+a {
+  text-decoration: none;
+  color: steelblue;
+}
+a.footer {
+  position: fixed;
+  bottom: 1%;
+  right: 1%;
 }
