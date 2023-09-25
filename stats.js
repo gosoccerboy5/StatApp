@@ -155,7 +155,6 @@ $("#histogram").update = function() {
       }
       bins[currBin] += 1;
     }
-    console.log(bins);
     return bins;
   }
   function drawLine(ctx, x1, y1, x2, y2) {
@@ -217,7 +216,7 @@ $("#histogram").update = function() {
     let highestCount = Math.max(...bins);
     let freqStepCount = Math.ceil(highestCount/5)*5, freqStep = freqStepCount/5;
     drawHistogram(canvas, dataset.min, step, 
-      Math.ceil(dataset.range/step)+1, freqStep, freqStepCount, bins);
+      bins.length, freqStep, freqStepCount, bins);
   }
   draw();
   [div.querySelector("#step"), div.querySelector("#normal"), div.querySelector("#binsize")].forEach(el => 
