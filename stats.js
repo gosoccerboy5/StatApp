@@ -149,12 +149,13 @@ $("#histogram").update = function() {
     let bins = [0];
     let currBin = 0;
     for (let item of data) {
-      if (item > currBin*step + step + start) {
+      while (item >= currBin*step + step + start) {
         currBin += 1;
         bins[currBin] = 0;
       }
       bins[currBin] += 1;
     }
+    console.log(bins);
     return bins;
   }
   function drawLine(ctx, x1, y1, x2, y2) {
@@ -180,17 +181,19 @@ $("#histogram").update = function() {
       ctx.fillText(i, 6, canvas.height-margin-i*totalWidth/freqStepCount+3);
     }
     for (let i = 0; i <= count; i += 1) {
+      ctx.textAlign = "center";
       drawLine(ctx, margin+i*totalWidth/count, canvas.width-margin-7, margin+i*totalWidth/count, canvas.width-margin+7);
       let height = canvas.height-margin-bins[i]*totalWidth/freqStepCount;
-      ctx.fillStyle = "steelblue";
-      ctx.fillRect(margin+i*totalWidth/count, height, totalWidth/count, bins[i]*totalWidth/freqStepCount);
-      ctx.fillStyle = "black";
-      drawLine(ctx, margin+i*totalWidth/count, height, margin+i*totalWidth/count+totalWidth/count, height);
-      drawLine(ctx, margin+i*totalWidth/count, canvas.height-margin, margin+i*totalWidth/count, height);
-      drawLine(ctx, margin+(i+1)*totalWidth/count, canvas.height-margin, margin+(i+1)*totalWidth/count, height);
-      ctx.textAlign = "center";
-      if (div.querySelector("#binsize").checked) {
-        ctx.fillText(bins[i], margin+(i+.5)*totalWidth/count, height-3);
+      if (bins[i] > 0) {
+        ctx.fillStyle = "steelblue";
+        ctx.fillRect(margin+i*totalWidth/count, height, totalWidth/count, bins[i]*totalWidth/freqStepCount);
+        ctx.fillStyle = "black";
+        drawLine(ctx, margin+i*totalWidth/count, height, margin+i*totalWidth/count+totalWidth/count, height);
+        drawLine(ctx, margin+i*totalWidth/count, canvas.height-margin, margin+i*totalWidth/count, height);
+        drawLine(ctx, margin+(i+1)*totalWidth/count, canvas.height-margin, margin+(i+1)*totalWidth/count, height);
+        if (div.querySelector("#binsize").checked) {
+          ctx.fillText(bins[i], margin+(i+.5)*totalWidth/count, height-3);
+        }
       }
       ctx.fillText(trunc(i*step+start), 20+i*totalWidth/count, canvas.height);
     }
@@ -214,7 +217,7 @@ $("#histogram").update = function() {
     let highestCount = Math.max(...bins);
     let freqStepCount = Math.ceil(highestCount/5)*5, freqStep = freqStepCount/5;
     drawHistogram(canvas, dataset.min, step, 
-      Math.ceil(dataset.range/step), freqStep, freqStepCount, bins);
+      Math.ceil(dataset.range/step)+1, freqStep, freqStepCount, bins);
   }
   draw();
   [div.querySelector("#step"), div.querySelector("#normal"), div.querySelector("#binsize")].forEach(el => 
