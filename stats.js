@@ -185,10 +185,10 @@ $("#normal").update = function() {
     el.style.visibility = "hidden";
   }));
   function getMean() {
-    return Number(div.querySelector("#mean").value === "" ? div.querySelector("#mean").placeholder : div.querySelector("#mean").value);
+    return Number(div.querySelector("#mean").value === "" ? dataset.mean : div.querySelector("#mean").value);
   }
   function getStddev() {
-    return Number(div.querySelector("#stddev").value === "" ? div.querySelector("#stddev").placeholder : div.querySelector("#stddev").value);
+    return Number(div.querySelector("#stddev").value === "" ? dataset.stddev : div.querySelector("#stddev").value);
   }
   function updateZScore() {
     let value = Number(div.querySelector("#zScore").value);
