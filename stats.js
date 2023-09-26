@@ -337,12 +337,12 @@ $("#histogram").update = function() {
   function draw() {
     let step = div.querySelector("#step").value ? Number(div.querySelector("#step").value) : Math.ceil(dataset.range/10);
     step = Math.max(step, Math.ceil(dataset.range/100));
+    if (step === 0) step = 1;
     div.querySelector("#step").placeholder = Math.ceil(dataset.range/10);
     let bins = getBins(dataset.list, dataset.min, step);
     let highestCount = Math.max(...bins);
     let freqStepCount = Math.ceil(highestCount/5)*5, freqStep = freqStepCount/5;
-    drawHistogram(canvas, dataset.min, step, 
-      bins.length, freqStep, freqStepCount, bins);
+    drawHistogram(canvas, dataset.min, step,  bins.length, freqStep, freqStepCount, bins);
   }
   draw();
   [div.querySelector("#step"), div.querySelector("#normal"), div.querySelector("#binsize")].forEach(el => 
