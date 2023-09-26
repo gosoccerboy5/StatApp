@@ -55,6 +55,24 @@ class Dataset {
     return Math.round((integrate(normalDistributionFn, bottom || 0, top || 0, 0.0001) +
       [bottom, top].filter(x=>x===null).length * 0.5)*10000)/10000;
   }
+  invNormalRange(percentile, location, zScore=true) {
+    percentile = Math.min(Math.max(percentile, 0), 1);
+    if (percentile === 1 || (percentile === 0 && location !== 0)) return location === 0 ? [-Infinity, Infinity] : (location === 1 ? -1 : 1) * (percentile === 0 ? -1 : 1) * Infinity;
+    let increment = (Math.abs(percentile-0.5)/(percentile-0.5) || 1) * 0.0001, curr = 0, sum = 0;
+    let normalDistributionFn = x => ((1/Math.sqrt(2*Math.PI))*(Math.E**(-.5*(x**2))));
+    let cond = location === 0 ?  () => Math.abs(sum) < percentile/2 : () => Math.abs(sum) < Math.abs(percentile-0.5);
+    while (cond()) {
+      sum += normalDistributionFn(curr) * increment;
+      curr += increment;
+    }
+    console.log(curr)
+    curr = location === 1 ? -curr : curr;
+    if (location !== 0) {
+      return trunc(zScore ? curr : this.invZScore(curr));
+    } else {
+      return [curr, -curr].map(n => trunc(zScore ? n : this.invZScore(n)));
+    }
+  }
 }
 
 function trunc(value) {
@@ -65,7 +83,15 @@ let $ = document.querySelector.bind(document);
 let dataset = null;
 function updateDataset() {
   try {
-    dataset = new Dataset($("#data").value.replaceAll(" ", "").split(/,+/).filter(n => n !== "").map(Number));
+    dataset = new Dataset($("#data").value.replaceAll(" ", "")
+      .replaceAll(/-?\d*(\.\d+)?\*\d+/g, function(match) {
+        let combined = "";
+        for (let i = 0; i < Number(match.split("*")[1]); i++) {
+          combined += match.split("*")[0] + ",";
+        }
+        return combined;
+      })
+      .split(/,+/).filter(n => n !== "").map(Number));
     $("#widgetselect").disabled = false;
     $("#data").value = dataset.list.join(", ");
     if ($("#widgetselect").value !== "") {
@@ -136,6 +162,112 @@ $("#frequencystats").update = function() {
   this.querySelector("#freqenter").addEventListener("click", updatefrequency);
 };
 
+$("#normal").update = function() {
+  let div = this;
+  div.innerHTML = `
+  <span>Mean:</span> <input id="mean" disabled></input> <button id="editmean">Edit (temporarily)</button><br>
+  <span>Standard Deviation</span> <input id="stddev" disabled></input><button id="editstddev">Edit (temporarily)</button><br>
+  <input id="zScore" placeholder="Input a value..."></input> <button id="getZScore">Get zScore</button>
+  <br><span id="zScoreOutput"></span><br>
+  <input id="invZScore" placeholder="Input a zScore..."></input> <button id="getInvZScore">Get value</button>
+  <br><span id="invZScoreOutput"></span><br>
+  <span>Normal Cumulative Distribution Function</span> <button id="normalcdf">Enter!</button><br><span>Left Bound:</span> <input id="leftbound" placeholder="unbounded"> 
+  Right Bound: <input id="rightbound" placeholder="unbounded"> as <button id="isZScores" value="true">zScores</button><br><span id="normalcdfoutput"></span>
+  <br><br><span>Inverse Normal Cumulative Distribution Function</span> <button id="invnormalcdf">Enter!</button><br>
+  <span>Find</span> <button id="percentiletype" value="-1" style="min-width:60px">bottom</button> <input id="percentile" style="width: 20px" placeholder="25"><span>% percentile as a</span>
+  <button id="isZScoreInverse" value="true">zScore</button><br><span id="invnormalcdfoutput"></span>
+  `;
+  div.querySelector("#mean").placeholder = trunc(dataset.mean).toString();
+  div.querySelector("#stddev").placeholder = trunc(dataset.stddev).toString();
+  [div.querySelector("#editmean"), div.querySelector("#editstddev")].forEach(el => el.addEventListener("click", function() {
+    div.querySelector("#" + el.id.replace("edit", "")).disabled = false;
+    div.querySelector("#" + el.id.replace("edit", "")).focus();
+    el.style.visibility = "hidden";
+  }));
+  function getMean() {
+    return Number(div.querySelector("#mean").value === "" ? div.querySelector("#mean").placeholder : div.querySelector("#mean").value);
+  }
+  function getStddev() {
+    return Number(div.querySelector("#stddev").value === "" ? div.querySelector("#stddev").placeholder : div.querySelector("#stddev").value);
+  }
+  function updateZScore() {
+    let value = Number(div.querySelector("#zScore").value);
+    let oldmean = dataset.mean, oldStddev = dataset.stddev;
+    dataset.mean = getMean(); dataset.stddev = getStddev();
+    div.querySelector("#zScoreOutput").innerText = "Z: " + trunc(dataset.zScore(value)).toString();
+    dataset.mean = oldmean; dataset.stddev = oldStddev;
+  }
+  this.querySelector("#zScore").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") updateZScore();
+  });
+  this.querySelector("#getZScore").addEventListener("click", updateZScore);
+  function updateInvZScore() {
+    let value = Number(div.querySelector("#invZScore").value);
+    let oldmean = dataset.mean, oldStddev = dataset.stddev;
+    dataset.mean = getMean(); dataset.stddev = getStddev();
+    div.querySelector("#invZScoreOutput").innerText = "Value: " + trunc(dataset.invZScore(value)).toString();
+    dataset.mean = oldmean; dataset.stddev = oldStddev;
+  }
+  this.querySelector("#invZScore").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") updateInvZScore();
+  });
+  this.querySelector("#getInvZScore").addEventListener("click", updateInvZScore);
+
+  div.querySelector("#isZScores").addEventListener("click", function() {
+    if (this.value === "true") {
+      this.value = "false";
+      this.innerText = "values";
+    } else {
+      this.value = "true";
+      this.innerText = "zScores";
+    }
+  });
+  let numberify = value => value === "" ? null : Number(value);
+  function updateNormalCDF() {
+    let oldmean = dataset.mean, oldStddev = dataset.stddev;
+    dataset.mean = getMean(); dataset.stddev = getStddev();
+    let output = dataset.normalRange(numberify(div.querySelector("#leftbound").value), numberify(div.querySelector("#rightbound").value), div.querySelector("#isZScores").value === "true");
+    div.querySelector("#normalcdfoutput").innerText = `Normal cumulative distribution from ${div.querySelector("#leftbound").value || "-∞"} to ${div.querySelector("#rightbound").value || "∞"}` + 
+    ` as ${div.querySelector("#isZScores").innerText}: ${trunc(output * 100)}%`;
+    dataset.mean = oldmean; dataset.stddev = oldStddev;
+  }
+  div.querySelector("#normalcdf").addEventListener("click", updateNormalCDF);
+  [div.querySelector("#leftbound"), div.querySelector("#rightbound")].forEach(el => el.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") updateNormalCDF();
+  }));
+
+  div.querySelector("#isZScoreInverse").addEventListener("click", function() {
+    this.value = this.value === "true" ? "false" : "true";
+    this.innerText = this.value === "true" ? "zScore" : "value";
+  });
+  div.querySelector("#percentiletype").addEventListener("click", function() {
+    this.value = ((Number(this.value) + 2) % 3) - 1;
+    this.innerText = ["bottom", "middle", "top"][Number(this.value)+1];
+  });
+  function updateInvNormalCDF() {
+    let percentile = (div.querySelector("#percentile").value ? Number(div.querySelector("#percentile").value) : Number(div.querySelector("#percentile").placeholder))/100;
+    let percentileType = Number(div.querySelector("#percentiletype").value);
+    let isZScore = div.querySelector("#isZScoreInverse").value === "true";
+    let oldmean = dataset.mean, oldStddev = dataset.stddev;
+    dataset.mean = getMean(); dataset.stddev = getStddev();
+    let output = dataset.invNormalRange(percentile, percentileType, isZScore);
+    let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : n.toString();
+    div.querySelector("#invnormalcdfoutput").innerText = `Threshold for ${div.querySelector("#percentiletype").innerText} ${percentile * 100}th percentile` +
+      ` as a ${div.querySelector("#isZScoreInverse").innerText}: ${percentileType === 0 ? `between ${stringify(output[0])} and ${stringify(output[1])}` : stringify(output)}`;
+    dataset.mean = oldmean; dataset.stddev = oldStddev;
+  }
+  div.querySelector("#invnormalcdf").addEventListener("click", updateInvNormalCDF);
+  div.querySelector("#percentile").addEventListener("keypress", function(e) {if (e.key === "Enter") updateInvNormalCDF()});
+};
+
+function drawLine(ctx, x1, y1, x2, y2) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  ctx.closePath();
+}
+
 $("#histogram").update = function() {
   let div = this;
   this.innerHTML = `<span>Step: </span><input id="step"></input> <span>Show bin size?</span>
@@ -157,19 +289,13 @@ $("#histogram").update = function() {
     }
     return bins;
   }
-  function drawLine(ctx, x1, y1, x2, y2) {
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    ctx.closePath();
-  }
+  
   function drawHistogram(canvas, start, step, count, freqStep, freqStepCount, bins) {
     canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
     if (step <= 0) step = 1;
     if (freqStep <= 0) freqStep = 1;
     let ctx = canvas.getContext("2d");
-    let margin = 20;
+    let margin = 25;
     let totalWidth = canvas.width-2*margin;
     ctx.strokeStyle = "black";
     drawLine(ctx, margin, canvas.width-margin, margin, margin);
@@ -177,7 +303,7 @@ $("#histogram").update = function() {
     for (let i = 0; i <= freqStepCount; i+=freqStep) {
       drawLine(ctx, margin-7, canvas.height-margin-i*totalWidth/freqStepCount, margin+7, canvas.height-margin-i*totalWidth/freqStepCount);
       ctx.textAlign = "center";
-      ctx.fillText(i, 6, canvas.height-margin-i*totalWidth/freqStepCount+3);
+      ctx.fillText(i, 9, canvas.height-margin-i*totalWidth/freqStepCount+3);
     }
     for (let i = 0; i <= count; i += 1) {
       ctx.textAlign = "center";
@@ -194,7 +320,7 @@ $("#histogram").update = function() {
           ctx.fillText(bins[i], margin+(i+.5)*totalWidth/count, height-3);
         }
       }
-      ctx.fillText(trunc(i*step+start), 20+i*totalWidth/count, canvas.height);
+      ctx.fillText(trunc(i*step+start), 20+i*totalWidth/count+5, canvas.height-6);
     }
     if (div.querySelector("#normal").checked) {
       let normalDistributionFn = x => ((1/Math.sqrt(2*Math.PI))*(Math.E**(-.5*(x**2))));
@@ -210,7 +336,7 @@ $("#histogram").update = function() {
   }
   function draw() {
     let step = div.querySelector("#step").value ? Number(div.querySelector("#step").value) : Math.ceil(dataset.range/10);
-    if (step < 0.01) step = 1;
+    step = Math.max(step, Math.ceil(dataset.range/100));
     div.querySelector("#step").placeholder = Math.ceil(dataset.range/10);
     let bins = getBins(dataset.list, dataset.min, step);
     let highestCount = Math.max(...bins);
@@ -226,49 +352,3 @@ $("#histogram").update = function() {
   });
 };
 
-$("#normal").update = function() {
-  let div = this;
-  div.innerHTML = `
-  <span id="mean"></span><br><span id="stddev"></span><br>
-  <input id="zScore" placeholder="Input a value..."></input> <button id="getZScore">Get zScore</button>
-  <br><span id="zScoreOutput"></span><br>
-  <input id="invZScore" placeholder="Input a zScore..."></input> <button id="getInvZScore">Get value</button>
-  <br><span id="invZScoreOutput"></span><br>
-  <span>Normal Cumulative Distribution Function</span> <button id="normalcdf">Enter!</button><br><span>Left Bound:</span> <input id="leftbound" placeholder="unbounded"> 
-  Right Bound: <input id="rightbound" placeholder="unbounded"> as <button id="isZScores" value="true">zScores</button><br><span id="normalcdfoutput"></span>
-  `;
-  div.querySelector("#mean").innerText = "Mean: " + trunc(dataset.mean).toString();
-  div.querySelector("#stddev").innerText = "Standard Deviation: " + trunc(dataset.stddev).toString();
-  function updateZScore() {
-    let value = Number(div.querySelector("#zScore").value);
-    div.querySelector("#zScoreOutput").innerText = "Z: " + trunc(dataset.zScore(value)).toString();
-  }
-  this.querySelector("#zScore").addEventListener("keypress", function(e) {
-    if (e.key === "Enter") updateZScore();
-  });
-  this.querySelector("#getZScore").addEventListener("click", updateZScore);
-  function updateInvZScore() {
-    let value = Number(div.querySelector("#invZScore").value);
-    div.querySelector("#invZScoreOutput").innerText = "Value: " + trunc(dataset.invZScore(value)).toString();
-  }
-  this.querySelector("#invZScore").addEventListener("keypress", function(e) {
-    if (e.key === "Enter") updateInvZScore();
-  });
-  this.querySelector("#getInvZScore").addEventListener("click", updateInvZScore);
-
-  div.querySelector("#isZScores").addEventListener("click", function() {
-    if (this.value === "true") {
-      this.value = "false";
-      this.innerText = "values";
-    } else {
-      this.value = "true";
-      this.innerText = "zScores";
-    }
-  });
-  let numberify = value => value === "" ? null : Number(value);
-  div.querySelector("#normalcdf").addEventListener("click", function() {
-    let output = dataset.normalRange(numberify(div.querySelector("#leftbound").value), numberify(div.querySelector("#rightbound").value), div.querySelector("#isZScores").value === "true");
-    div.querySelector("#normalcdfoutput").innerText = `Normal cumulative distribution from ${div.querySelector("#leftbound").value || "-∞"} to ${div.querySelector("#rightbound").value || "∞"}` + 
-    ` as ${div.querySelector("#isZScores").innerText}: ${output * 100}%`;
-  });
-};
