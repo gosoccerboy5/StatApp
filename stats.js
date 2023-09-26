@@ -15,10 +15,9 @@ class Dataset {
     this.range = this.max - this.min;
     this.median = this.count % 2 === 0 ? 
       (this.list[this.count/2] + this.list[this.count/2-1])/2 : this.list[Math.floor(this.count/2)];
-    this.q1 = this.count % 4 === 0 ? 
-      (this.list[this.count/4] + this.list[this.count/4-1])/2 : this.list[Math.floor(this.count/4)];
-    this.q3 = this.count % 4 === 0 ? 
-      (this.list[this.count*.75] + this.list[this.count*.75-1])/2 : this.list[Math.floor(this.count*.75)];
+    let low = this.list.slice(0, Math.floor(this.list.length/2)), high = this.list.slice(Math.ceil(this.list.length/2));
+    this.q1 = low.length % 2 === 0 ? (low[low.length/2]+low[low.length/2-1])/2 : low[Math.floor(low.length/2)];
+    this.q3 = high.length % 2 === 0 ? (high[high.length/2]+high[high.length/2-1])/2 : high[Math.floor(high.length/2)];
     this.IQR = this.q3 - this.q1;
   }
   frequency(value) {
@@ -65,7 +64,6 @@ class Dataset {
       sum += normalDistributionFn(curr) * increment;
       curr += increment;
     }
-    console.log(curr)
     curr = location === 1 ? -curr : curr;
     if (location !== 0) {
       return trunc(zScore ? curr : this.invZScore(curr));
@@ -83,7 +81,8 @@ let $ = document.querySelector.bind(document);
 let dataset = null;
 function updateDataset() {
   try {
-    dataset = new Dataset($("#data").value.replaceAll(" ", "")
+    dataset = new Dataset($("#data").value.replaceAll(/(-?\d*\.?\d+) +(-?\d*\.?\d+)/g, "$1,$2,")
+      .replaceAll(/[ \n]/g, "")
       .replaceAll(/-?\d*(\.\d+)?\*\d+/g, function(match) {
         let combined = "";
         for (let i = 0; i < Number(match.split("*")[1]); i++) {
@@ -93,6 +92,7 @@ function updateDataset() {
       })
       .split(/,+/).filter(n => n !== "").map(Number));
     $("#widgetselect").disabled = false;
+    $("#enter").disabled = true;
     $("#data").value = dataset.list.join(", ");
     if ($("#widgetselect").value !== "") {
       $("#" + $("#widgetselect").value).update();
@@ -127,12 +127,27 @@ $("#widgetselect").addEventListener("change", function(e) {
   $("#widgetselect option[value='']").disabled = true;
 });
 
+$("#save").addEventListener("click", function() {
+  localStorage.setItem("saved", $("#data").value);
+  this.disabled = true;
+});
+window.addEventListener("load", function() {
+  if (localStorage.getItem("saved") !== null) {
+    $("#data").value = localStorage.getItem("saved");  
+    $("#save").disabled = true;
+  }
+});
+$("#data").addEventListener("input", function() {
+  $("#save").disabled = false;
+  $("#enter").disabled = false;
+});
+
 
 $("#generaldata").update = function() {
   this.innerHTML = "";
   let table = document.createElement("table");
   for (let datum of [["Total # of data", dataset.count], ["Mean", trunc(dataset.mean)], ["Standard Deviation", trunc(dataset.stddev)], ["Min", dataset.min], 
-    ["Q1", dataset.q1], ["Median", dataset.median], ["Q3", dataset.q3], ["IQR", dataset.IQR], ["Max", dataset.max], ["Range", dataset.range]]) {
+    ["Q1", dataset.q1], ["Median", dataset.median], ["Q3", dataset.q3], ["Max", dataset.max], ["IQR", dataset.IQR], ["Range", dataset.range]]) {
     let tr = document.createElement("tr");
     let td1 = document.createElement("td");
     td1.innerText = datum[0] + ": ";
@@ -336,7 +351,7 @@ $("#histogram").update = function() {
   }
   function draw() {
     let step = div.querySelector("#step").value ? Number(div.querySelector("#step").value) : Math.ceil(dataset.range/10);
-    step = Math.max(step, Math.ceil(dataset.range/100));
+    step = Math.max(step, dataset.range/100);
     if (step === 0) step = 1;
     div.querySelector("#step").placeholder = Math.ceil(dataset.range/10);
     let bins = getBins(dataset.list, dataset.min, step);
@@ -352,3 +367,61 @@ $("#histogram").update = function() {
   });
 };
 
+$("#boxplot").update = function() {
+  this.innerHTML = "";
+  let div = this;
+  let canvas = document.createElement("canvas");
+  canvas.width = 500;
+  canvas.height = 200;
+  canvas.style.width = "500px";
+  canvas.style.height = "200px";
+  div.append(canvas);
+
+  function drawBoxplot() {
+    let ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let margin = 20;
+    drawLine(ctx, margin, canvas.height-margin, canvas.width-margin, canvas.height-margin);
+    let width = canvas.width-margin-margin;
+
+    let step = Math.ceil(dataset.range/10);
+    let start = dataset.min - Math.floor(step/2);
+    let count = step === 0 ? 1 : Math.ceil(dataset.range/step) + 1;
+
+    for (let i = 0; i <= count; i+=1) {
+      ctx.textAlign = "center";
+      drawLine(ctx, i*width/count+margin, canvas.height-margin-10, i*width/count+margin, canvas.height-margin+10);
+      ctx.fillText(i*step+start, i*width/count+margin, canvas.height-margin + 19);
+    }
+
+    let lowFence = dataset.q1 - 1.5*dataset.IQR;
+    lowFence = dataset.list.find(n => n >= lowFence);
+    let highFence = dataset.q3 + 1.5*dataset.IQR;
+    highFence = dataset.list.findLast(n => n <= highFence);
+    let getX = n => (n-start)*width/count/step+margin;
+
+    for (let item of dataset.list) {
+      if (item < lowFence || item > highFence) {
+        ctx.beginPath();
+        ctx.arc(getX(item), (canvas.height-margin)/2, 2, 0, Math.PI*2);
+        ctx.fillStyle = "black";
+        ctx.fill();
+        ctx.closePath();
+      }
+    }
+    ctx.fillStyle = "steelblue";
+    ctx.lineWidth = 1.2;
+    ctx.fillRect(getX(dataset.q1), (canvas.height-margin)/2-30, dataset.IQR * width/count/step, 60);
+    drawLine(ctx, getX(dataset.q1), (canvas.height-margin)/2-30, getX(dataset.q1), (canvas.height-margin)/2+30);
+    drawLine(ctx, getX(dataset.median), (canvas.height-margin)/2-30, getX(dataset.median), (canvas.height-margin)/2+30);
+    drawLine(ctx, getX(dataset.q3), (canvas.height-margin)/2-30, getX(dataset.q3), (canvas.height-margin)/2+30);
+    drawLine(ctx, getX(dataset.q1), (canvas.height-margin)/2-30, getX(dataset.q3), (canvas.height-margin)/2-30);
+    drawLine(ctx, getX(dataset.q1), (canvas.height-margin)/2+30, getX(dataset.q3), (canvas.height-margin)/2+30);
+    drawLine(ctx, getX(lowFence), (canvas.height-margin)/2-10, getX(lowFence), (canvas.height-margin)/2+10);
+    drawLine(ctx, getX(highFence), (canvas.height-margin)/2-10, getX(highFence), (canvas.height-margin)/2+10);
+    drawLine(ctx, getX(lowFence), (canvas.height-margin)/2, getX(dataset.q1), (canvas.height-margin)/2);
+    drawLine(ctx, getX(highFence), (canvas.height-margin)/2, getX(dataset.q3), (canvas.height-margin)/2);
+    ctx.lineWidth = 1;
+  }
+  drawBoxplot();
+};
