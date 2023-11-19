@@ -13,6 +13,18 @@ button, select {
   padding: 5px;
   margin: 4px;
 }
+code {
+  background: lightgrey;
+  padding: 3px;
+  border-radius: 3px;
+  font-size: .7em;
+}
+details {
+  max-width: 50%;
+}
+details p {
+  padding: 5px;
+}
 button, select {
   cursor: pointer;
   background: rgb(117, 210, 117);
@@ -52,4 +64,25 @@ a.footer {
   position: fixed;
   bottom: 1%;
   right: 1%;
+}
+table {
+  background: black;
+  border-radius: 3px;
+}
+td {
+  background: powderblue;
+  padding: 5px;
+  width: 40px;
+}
+td input {
+  width: 70%;
+  margin: auto;
+  font-size: .7em;
+}
+.tablebtn {
+  width: 30px;
+  margin-left: -1px;
+}
+#distributions div input {
+  width: 40px;
 }

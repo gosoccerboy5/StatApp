@@ -1,0 +1,33 @@
+<!DOCTYPE HTML>
+
+<html>
+  <head>
+    <title>1 Variable Statistics - StatApp</title>
+    <link rel="stylesheet" href="style.css"></link>
+    <link rel="icon" href="favicon.png"></link>
+  </head>
+  <body>
+    <h1>StatApp</h1>
+    <textarea id="data" placeholder="Enter values split by commas; n*m will generate m instances of n"></textarea>
+    <br>
+    <button id="enter">Enter</button> <button id="save">Save current dataset</button>
+    <br>
+    <select id="widgetselect" disabled>
+      <option value="">Select a widget:</option>
+      <option value="generaldata">General Data</option>
+      <option value="frequencystats">Frequency Stats</option>
+      <option value="normal">Normal Distribution</option>
+      <option value="histogram">Histogram</option>
+      <option value="boxplot">Box Plot</option>
+    </select>
+    <div id="widgetdisplay">
+      <div id="generaldata"></div>
+      <div id="frequencystats"></div>
+      <div id="normal"></div>
+      <div id="histogram"></div>
+      <div id="boxplot"></div>
+    </div>
+    <a href="index.html" class="footer">Home</a>
+    <script src="1varstats.js"></script>
+  </body>
+</html>
