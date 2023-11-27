@@ -41,7 +41,7 @@ function invNormalRange(percentile, location, mean, stddev, zScore=true) {
 
 
 function trunc(value) {
-  return Math.round(value * 1000) / 1000;
+  return Math.round(value * 10000) / 10000;
 }
 
 let $ = document.querySelector.bind(document);
@@ -139,7 +139,6 @@ $("#normal").update = function() {
     let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : n.toString();
     div.querySelector("#invnormalcdfoutput").innerText = `Threshold for ${div.querySelector("#percentiletype").innerText} ${percentile * 100}th percentile` +
       ` as a ${div.querySelector("#isZScoreInverse").innerText}: ${percentileType === 0 ? `between ${stringify(output[0])} and ${stringify(output[1])}` : stringify(output)}`;
-    dataset.mean = oldmean; dataset.stddev = oldStddev;
   }
   div.querySelector("#invnormalcdf").addEventListener("click", updateInvNormalCDF);
   div.querySelector("#percentile").addEventListener("keypress", function(e) {if (e.key === "Enter") updateInvNormalCDF()});
@@ -193,9 +192,9 @@ $("#discrete").update = function() {
   div.querySelector("#addCell").addEventListener("click", addCell);
   div.querySelector("#removeCell").addEventListener("click", removeCell);
   function numberify(str) {
-    if (str === "") return null;
+    if (/^[ .]*$/.test(str)) return null;
     if (str.includes("/")) return Number(str.split("/")[0])/Number(str.split("/")[1]);
-    return Number(str);
+    return Number.isNaN(Number(str)) ? null : Number(str);
   }
   let getVal = id => numberify(div.querySelector("#value" + id + " input").value);
   let getProb = id => numberify(div.querySelector("#prob" + id + " input").value);
@@ -237,13 +236,18 @@ $("#combine").update = function() {
   Adding, subtracting, multiplying, and repeating all have different effects.</details>`;
   function parseCombination(str, dict, calcValues=true) {
     if (Object.getOwnPropertyNames(dict).length === 0) return false;
-    let modelGroup = "-?((\\d*\\.)?\\d+)?[A-Z](\\*\\d+)?"; // something like -1.1X*5
+    let modelGroup = "-?((\\d*\\.)?\\d+)?([A-Z](\\*\\d+)?)?"; // something like -1.1X*5
     let wholeRegex = RegExp("^(" + modelGroup + "([+-]))*" + modelGroup + "$");
     str = str.toUpperCase().replace(/ /g, "");
     if (!wholeRegex.test(str) || !str.match(/[A-Z]/g).every(letter => letter in dict)) return false;
     if (!calcValues) return true;
     let mean = null, stddev = null;
     for (let group of str.match(RegExp(modelGroup, "g"))) {
+      if (group === "") continue;
+      if (/^-?((\d*\.)?\d+)$/.test(group)) {
+        mean = Number(group) + (mean === null ? 0 : mean);
+        continue;
+      }
       let tempMean = dict[group.match(/[A-Z]/)[0]][0], tempStddev = dict[group.match(/[A-Z]/)[0]][1];
       let factor = group.match(/-?((\d*\.)?\d+)?/)?.[0];
       if (factor === "" || factor === null) factor = 1;
@@ -289,6 +293,8 @@ $("#combine").update = function() {
       this.parentElement.parentElement.removeChild(this.parentElement);
       updateCanCalc();
     });
+    newDiv.querySelector(".distmean").addEventListener("input", updateCanCalc);
+    newDiv.querySelector(".diststddev").addEventListener("input", updateCanCalc);
     div.querySelector("#distributions").appendChild(newDiv);
     newDiv.querySelector(".distname").focus();
   }
