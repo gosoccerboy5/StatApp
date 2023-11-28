@@ -1,7 +1,7 @@
 function normalRange(bottom, top, mean, stddev, zScores=true) {
   if (!zScores) {
     bottom = bottom === null ? null : (bottom-mean)/stddev;
-	top = top === null ? null : (top-mean)/stddev;
+    top = top === null ? null : (top-mean)/stddev;
   }
   function integrate(fn, bottom, top, step) {
     step = step !== undefined ? Math.max(0.0001, Math.abs(step)) : 0.001;
@@ -227,7 +227,7 @@ $("#combine").update = function() {
   div.innerHTML = `<h3>Probability Distributions</h3><button id="addDist" style="margin:-1px;">Add distribution</button>
   <div id="distributions"></div><h3>Combining Random Variables</h3>
   <input id="combiner"><br><button id="calculate" disabled style="margin-left:-3px;">Calculate µ and σ</button>
-  <br><span id="combinedMean"></span><br><span id="combinedStddev"></span>
+  <button id="copy" disabled>Copy to new distribution</button><br><span id="combinedMean"></span><br><span id="combinedStddev"></span>
   <br><details><summary>Help</summary><p>Enter random variables/probability distributions under the Probability Distributions section
   with a 1 letter name. Under the Combining Variables section, you can add and subtract different random variables, 
   as well as multiplying them by constants and repeating them.
@@ -236,7 +236,7 @@ $("#combine").update = function() {
   Adding, subtracting, multiplying, and repeating all have different effects.</details>`;
   function parseCombination(str, dict, calcValues=true) {
     if (Object.getOwnPropertyNames(dict).length === 0) return false;
-    let modelGroup = "-?((\\d*\\.)?\\d+)?([A-Z](\\*\\d+)?)?"; // something like -1.1X*5
+    let modelGroup = "-?((\\d*\\.)?\\d+)?([A-Z](\\*(\\d*\\.)?\\d+)?)?"; // something like -1.1X*5
     let wholeRegex = RegExp("^(" + modelGroup + "([+-]))*" + modelGroup + "$");
     str = str.toUpperCase().replace(/ /g, "");
     if (!wholeRegex.test(str) || !str.match(/[A-Z]/g).every(letter => letter in dict)) return false;
@@ -253,7 +253,7 @@ $("#combine").update = function() {
       if (factor === "" || factor === null) factor = 1;
         else if (factor === "-") factor = -1;
         else factor = Number(factor);
-      let repetitions = group.match(/\*(\d+)/)?.[1];
+      let repetitions = group.match(/\*(\d*\.?\d+)/)?.[1];
       if (repetitions === undefined) repetitions = 1;
         else repetitions = Number(repetitions);
       tempMean *= factor;
@@ -297,6 +297,7 @@ $("#combine").update = function() {
     newDiv.querySelector(".diststddev").addEventListener("input", updateCanCalc);
     div.querySelector("#distributions").appendChild(newDiv);
     newDiv.querySelector(".distname").focus();
+    return newDiv;
   }
 
   addDistribution();
@@ -320,6 +321,7 @@ $("#combine").update = function() {
     if (values !== false) {
       div.querySelector("#combinedMean").innerText = "µ: " + trunc(values[0]);
       div.querySelector("#combinedStddev").innerText = "σ: " + trunc(values[1]);
+      div.querySelector("#copy").disabled = false;
     } else {
       div.querySelector("#combinedMean").innerText = "";
       div.querySelector("#combinedStddev").innerText = "";
@@ -329,10 +331,15 @@ $("#combine").update = function() {
     if (e.key === "Enter") div.querySelector("#calculate").click();
   });
 
-  window.fn = parseCombination;
+  div.querySelector("#copy").addEventListener("click", function() {
+    this.disabled = true;
+    let newDist = addDistribution();
+    newDist.querySelector(".distmean").value = div.querySelector("#combinedMean").innerText.replace("µ: ", "");
+    newDist.querySelector(".diststddev").value = div.querySelector("#combinedStddev").innerText.replace("σ: ", "");
+  });
 };
 
 $("#geometrical").update = function() {
   let div = this;
   div.innerHTML = "Coming soon..."
-}
+};
