@@ -1,3 +1,7 @@
+function addEnterEvent(el, fn) {
+  el.addEventListener("keypress", function(e) {if (e.key === "Enter") fn();});
+}
+
 function normalRange(bottom, top, mean, stddev, zScores=true) {
   if (!zScores) {
     bottom = bottom === null ? null : (bottom-mean)/stddev;
@@ -40,13 +44,14 @@ function invNormalRange(percentile, location, mean, stddev, zScore=true) {
 }
 
 
-function trunc(value) {
-  return Math.round(value * 10000) / 10000;
+function trunc(value, power=5) {
+  return Math.round(value * 10**power) / 10**power;
 }
 
 let $ = document.querySelector.bind(document);
 
 $("#widgetselect").value = "";
+$("#widgetselect").title = "Select a widget:";
 $("#widgetselect").addEventListener("change", function(e) {
   for (let child of $("#widgetdisplay").children) {
     if (child.id !== this.value) {
@@ -57,6 +62,7 @@ $("#widgetselect").addEventListener("change", function(e) {
       child.update();
     }
   }
+  this.title = $("option[value='" + this.value + "']").innerText;
   $("#widgetselect option[value='']").disabled = true;
 });
 
@@ -341,5 +347,109 @@ $("#combine").update = function() {
 
 $("#geometrical").update = function() {
   let div = this;
-  div.innerHTML = "Coming soon..."
+  div.innerHTML = `<h2>Geometric Distribution</h2><span>p = </span><input id="prob" placeholder=".5" style="width:40px;"></input>
+  <h3>Expected value and standard deviation</h3><span>Expected value of trials until success from 1 to </span> 
+  <input id="trials" placeholder="&infin;" style="width:30px;"> <button id="enterExpected">Enter!</button>
+  <br><span id="expectedMean"></span><br><span id="expectedStddev"></span><h3>Geometrical Probability Distribution Functions</h3>
+  <span>Probability of getting a success <button id="geomCdfOrPdf" value="pdf">exactly on</button> trial #</span><input id="geomDfTrials" style="width:30px" placeholder="1"></input>
+  <button id="geomDfEnter">Enter!</button><br><span id="geomDfOutput"></span>
+  <h2>Binomial Distribution</h2><span>p = </span><input id="binomProb" placeholder=".5" style="width:40px;"></input>
+  <br><span>n = </span><input id="binomTotal" placeholder="2" style="width:40px;"></input>
+  <h3>Expected value and standard deviation</h3><span>Calculate expected value and standard deviation</span><button id="binomEnterExpected">Enter!</button>
+  <br><span id="binomExpectedMean"></span><br><span id="binomExpectedStddev"></span><h3>Binomial Probability Distribution Functions</h3>
+  <span>Probability of getting<button id="binomCdfOrPdf" value="pdf">exactly</button></span><input id="binomDfTrials" style="width:30px" placeholder="1"></input>
+  <span>successes</span><button id="binomDfEnter">Enter!</button><br><span id="binomDfOutput"></span>`;
+  function getP() {
+    return Number(div.querySelector("#prob").value || div.querySelector("#prob").placeholder);
+  }
+  function updateExpectedValues() {
+    let mean = null, stddev = null, p = getP();
+    let trials = div.querySelector("#trials").value === "" ? null : Number(div.querySelector("#trials").value);
+    if (trials === null) {
+      mean = 1/p;
+      stddev = Math.sqrt(1-p)/p;
+    } else {
+      let dist = [];
+      for (let i = 1; i < trials; i++) {
+        dist.push([i, p*(1-p)**(i-1)]);
+      }
+      dist.push([trials, 1-dist.reduce((a, b) => a+b[1], 0)]);
+      mean = dist.reduce((a, b) => a+b[0]*b[1], 0);
+      stddev = Math.sqrt(dist.reduce((a, b) => a+(b[0]-mean)**2 * b[1], 0));
+    }
+    div.querySelector("#expectedMean").innerText = "µ: " + trunc(mean, 6);
+    div.querySelector("#expectedStddev").innerText = "σ: " + trunc(stddev, 6);
+  }
+  div.querySelector("#enterExpected").addEventListener("click", updateExpectedValues);
+  
+  div.querySelector("#geomCdfOrPdf").addEventListener("click", function() {
+    if (this.value === "pdf") {
+      this.value = "cdf";
+      this.innerText = "on or before";
+    } else {
+      this.value = "pdf";
+      this.innerText = "exactly on";
+    }
+  });
+  function updateGeomDF() {
+    let p = getP(), trials = Number(div.querySelector("#geomDfTrials").value || div.querySelector("#geomDfTrials").placeholder);
+    let isPdf = div.querySelector("#geomCdfOrPdf").value === "pdf";
+    let probability;
+    if (isPdf) {
+      probability = p * (1-p)**(trials-1);
+    } else {
+      probability = 0;
+      for (let i = 0; i < trials; i++) {
+        probability += p * (1-p)**(i);
+      }
+    }
+    div.querySelector("#geomDfOutput").innerText = `geomet${isPdf ? "P" : "C"}DF(${p}, ${trials}) = ${trunc(probability, 6)}`;
+  }
+  div.querySelector("#geomDfEnter").addEventListener("click", updateGeomDF);
+  function getBinomValues() {
+    return [Number(div.querySelector("#binomProb").value || div.querySelector("#binomProb").placeholder),
+      Number(div.querySelector("#binomTotal").value || div.querySelector("#binomTotal").placeholder)];
+  }
+  function updateBinomExpectedValues() {
+    let mean = null, stddev = null, p = getBinomValues();
+    div.querySelector("#binomExpectedMean").innerText = "µ: " + trunc(p[0]*p[1], 6);
+    div.querySelector("#binomExpectedStddev").innerText = "σ: " + trunc(Math.sqrt(p[0]*p[1]*(1-p[0])), 6);
+  }
+  div.querySelector("#binomEnterExpected").addEventListener("click", updateBinomExpectedValues);
+  div.querySelector("#binomCdfOrPdf").addEventListener("click", function() {
+    if (this.value === "pdf") {
+      this.value = "cdf";
+      this.innerText = "at most";
+    } else {
+      this.value = "pdf";
+      this.innerText = "exactly";
+    }
+  });
+  function updatebinomDF() {
+    function binomPdf(n, p, k) {
+      let total = 1;
+      for (let i = 1; i <= n; i++) {
+        total *= (i <= k ? p/i : 1) * (i <= (n-k) ? (1-p)/i : 1) * i;
+      }
+      return total;
+    }
+    let p = getBinomValues(), trials = Number(div.querySelector("#binomDfTrials").value || div.querySelector("#binomDfTrials").placeholder);
+    let isPdf = div.querySelector("#binomCdfOrPdf").value === "pdf";
+    let probability;
+    if (isPdf) {
+      probability = binomPdf(p[1], p[0], trials);
+    } else {
+      probability = 0;
+      for (let i = 0; i <= trials; i++) {
+        probability += binomPdf(p[1], p[0], i);
+      }
+    }
+    div.querySelector("#binomDfOutput").innerText = `binom${isPdf ? "P" : "C"}DF(${p[1]}, ${p[0]}, ${trials}) = ${trunc(probability, 6)}`;
+  }
+  div.querySelector("#binomDfEnter").addEventListener("click", updatebinomDF);
+  addEnterEvent(div.querySelector("#binomDfTrials"), updatebinomDF);
+  addEnterEvent(div.querySelector("#geomDfTrials"), updateGeomDF);
+  addEnterEvent(div.querySelector("#binomTotal"), updateBinomExpectedValues);
+  addEnterEvent(div.querySelector("#binomProb"), updateBinomExpectedValues);
+  addEnterEvent(div.querySelector("#trials"), updateExpectedValues);
 };
