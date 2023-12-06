@@ -427,11 +427,11 @@ $("#geometrical").update = function() {
   });
   function updatebinomDF() {
     function binomPdf(n, p, k) {
-      let total = 1;
+      let total = 0;
       for (let i = 1; i <= n; i++) {
-        total *= (i <= k ? p/i : 1) * (i <= (n-k) ? (1-p)/i : 1) * i;
+        total += (i <= k ? Math.log(p/i) : 0) + (i <= (n-k) ? Math.log((1-p)/i) : 0) + Math.log(i);
       }
-      return total;
+      return Math.E**total;
     }
     let p = getBinomValues(), trials = Number(div.querySelector("#binomDfTrials").value || div.querySelector("#binomDfTrials").placeholder);
     let isPdf = div.querySelector("#binomCdfOrPdf").value === "pdf";
