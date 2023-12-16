@@ -19,6 +19,9 @@ code {
   border-radius: 3px;
   font-size: .7em;
 }
+input.limited {
+  width: 40px;
+}
 details {
   max-width: 50%;
 }
@@ -40,7 +43,7 @@ button:hover:not(:disabled) {
 }
 #widgetdisplay {
   margin: 10px;
-  padding: 5px;
+  padding-left: 5px;
 }
 textarea, input {
   background: rgb(162, 194, 199);
@@ -60,10 +63,16 @@ a {
   text-decoration: none;
   color: steelblue;
 }
+a:hover {
+  text-decoration: underline;
+}
 a.footer {
   position: fixed;
-  bottom: 1%;
-  right: 1%;
+  bottom: 0%;
+  right: 0%;
+  background: skyblue;
+  padding: 10px;
+  border-radius: 5px;
 }
 table {
   background: black;

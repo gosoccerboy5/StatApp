@@ -2,6 +2,14 @@ function addEnterEvent(el, fn) {
   el.addEventListener("keypress", function(e) {if (e.key === "Enter") fn();});
 }
 
+function getValue(input) {
+  return Number(input.value === "" ? input.placeholder : input.value);
+}
+
+HTMLDivElement.prototype.get = function(selector) {
+  return this.querySelector(selector); 
+};
+
 function normalRange(bottom, top, mean, stddev, zScores=true) {
   if (!zScores) {
     bottom = bottom === null ? null : (bottom-mean)/stddev;
@@ -69,8 +77,9 @@ $("#widgetselect").addEventListener("change", function(e) {
 $("#normal").update = function() {
   let div = this;
   div.innerHTML = `
-  <span>Mean:</span> <input id="mean" placeholder="0"></input><br>
-  <span>Standard Deviation</span> <input id="stddev" placeholder="1"></input><br>
+  <h2>Normal Distribution</h2>
+  <span>µ = </span><input id="mean" placeholder="0" class="limited"></input><br>
+  <span>σ = </span><input id="stddev" placeholder="1" class="limited"></input><br>
   <input id="zScore" placeholder="Input a value..."></input> <button id="getZScore">Get zScore</button>
   <br><span id="zScoreOutput"></span><br>
   <input id="invZScore" placeholder="Input a zScore..."></input> <button id="getInvZScore">Get value</button>
@@ -80,33 +89,38 @@ $("#normal").update = function() {
   <br><br><span>Inverse Normal Cumulative Distribution Function</span> <button id="invnormalcdf">Enter!</button><br>
   <span>Find</span> <button id="percentiletype" value="-1" style="min-width:60px">bottom</button> <input id="percentile" style="width: 20px" placeholder="25"><span>% percentile as a</span>
   <button id="isZScoreInverse" value="true">zScore</button><br><span id="invnormalcdfoutput"></span>
-  `;
+  <h2>Sampling Distributions</h2>
+  <span>Sampling Distribution of Means</span><button id="samplingMeanEnter">Enter!</button><br><span>µ = </span><input id="meansMean" placeholder="0" class="limited"></input>
+  <br><span>σ = </span><input id="meansStddev" placeholder="1" class="limited"></input><br><span>n = </span><input id="meansTotal" placeholder="30" class="limited"></input>
+  <br><span id="meansMeanOutput"></span><br><span id="meansStddevOutput"></span><br>
+  <span>Sampling Distribution of Proportions</span><button id="samplingProportionEnter">Enter!</button><br><span>p = </span><input id="propProb" placeholder=".5" class="limited"></input>
+  <br><span>n = </span><input id="propTotal" placeholder="30" class="limited"></input><br><span id="propMeanOutput"></span><br><span id="propStddevOutput"></span>`;
   function getMean() {
-    return Number(div.querySelector("#mean").value === "" ? div.querySelector("#mean").placeholder : div.querySelector("#mean").value);
+    return Number(div.get("#mean").value === "" ? div.get("#mean").placeholder : div.get("#mean").value);
   }
   function getStddev() {
-    return Number(div.querySelector("#stddev").value === "" ? div.querySelector("#stddev").placeholder : div.querySelector("#stddev").value);
+    return Number(div.get("#stddev").value === "" ? div.get("#stddev").placeholder : div.get("#stddev").value);
   }
   function updateZScore() {
-    let value = Number(div.querySelector("#zScore").value);
+    let value = Number(div.get("#zScore").value);
     let mean = getMean(); stddev = getStddev();
-    div.querySelector("#zScoreOutput").innerText = "Z: " + trunc((value-mean)/stddev).toString();
+    div.get("#zScoreOutput").innerText = "Z: " + trunc((value-mean)/stddev).toString();
   }
   this.querySelector("#zScore").addEventListener("keypress", function(e) {
     if (e.key === "Enter") updateZScore();
   });
   this.querySelector("#getZScore").addEventListener("click", updateZScore);
   function updateInvZScore() {
-    let value = Number(div.querySelector("#invZScore").value);
+    let value = Number(div.get("#invZScore").value);
     let mean = getMean(); stddev = getStddev();
-    div.querySelector("#invZScoreOutput").innerText = "Value: " + trunc(value * stddev + mean).toString();
+    div.get("#invZScoreOutput").innerText = "Value: " + trunc(value * stddev + mean).toString();
   }
   this.querySelector("#invZScore").addEventListener("keypress", function(e) {
     if (e.key === "Enter") updateInvZScore();
   });
   this.querySelector("#getInvZScore").addEventListener("click", updateInvZScore);
 
-  div.querySelector("#isZScores").addEventListener("click", function() {
+  div.get("#isZScores").addEventListener("click", function() {
     if (this.value === "true") {
       this.value = "false";
       this.innerText = "values";
@@ -118,36 +132,55 @@ $("#normal").update = function() {
   let numberify = value => value === "" ? null : Number(value);
   function updateNormalCDF() {
     let mean = getMean(); stddev = getStddev();
-	let isZScores = div.querySelector("#isZScores").value === "true";
-    let output = normalRange(numberify(div.querySelector("#leftbound").value), numberify(div.querySelector("#rightbound").value),   mean, stddev, isZScores);
-    div.querySelector("#normalcdfoutput").innerText = `Normal cumulative distribution from ${div.querySelector("#leftbound").value || "-∞"} to ${div.querySelector("#rightbound").value || "∞"}` + 
-    ` as ${div.querySelector("#isZScores").innerText}: ${trunc(output * 100)}%`;
+	let isZScores = div.get("#isZScores").value === "true";
+    let output = normalRange(numberify(div.get("#leftbound").value), numberify(div.get("#rightbound").value),   mean, stddev, isZScores);
+    div.get("#normalcdfoutput").innerText = `normalCDF(${div.get("#leftbound").value || "-∞"}, ${div.get("#rightbound").value || "∞"}` + 
+    `${div.get("#isZScores").innerText === "zScores" ? "" : `, µ: ${getMean()}, σ: ${getStddev()}`}) = ${trunc(output)}`
   }
-  div.querySelector("#normalcdf").addEventListener("click", updateNormalCDF);
-  [div.querySelector("#leftbound"), div.querySelector("#rightbound")].forEach(el => el.addEventListener("keypress", function(e) {
+  div.get("#normalcdf").addEventListener("click", updateNormalCDF);
+  [div.get("#leftbound"), div.get("#rightbound")].forEach(el => el.addEventListener("keypress", function(e) {
     if (e.key === "Enter") updateNormalCDF();
   }));
 
-  div.querySelector("#isZScoreInverse").addEventListener("click", function() {
+  div.get("#isZScoreInverse").addEventListener("click", function() {
     this.value = this.value === "true" ? "false" : "true";
     this.innerText = this.value === "true" ? "zScore" : "value";
   });
-  div.querySelector("#percentiletype").addEventListener("click", function() {
+  div.get("#percentiletype").addEventListener("click", function() {
     this.value = ((Number(this.value) + 2) % 3) - 1;
     this.innerText = ["bottom", "middle", "top"][Number(this.value)+1];
   });
   function updateInvNormalCDF() {
-    let percentile = (div.querySelector("#percentile").value ? Number(div.querySelector("#percentile").value) : Number(div.querySelector("#percentile").placeholder))/100;
-    let percentileType = Number(div.querySelector("#percentiletype").value);
-    let isZScore = div.querySelector("#isZScoreInverse").value === "true";
+    let percentile = (div.get("#percentile").value ? Number(div.get("#percentile").value) : Number(div.get("#percentile").placeholder))/100;
+    let percentileType = Number(div.get("#percentiletype").value);
+    let isZScore = div.get("#isZScoreInverse").value === "true";
     let mean = getMean(); stddev = getStddev();
     let output = invNormalRange(percentile, percentileType, mean, stddev, isZScore);
-    let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : n.toString();
-    div.querySelector("#invnormalcdfoutput").innerText = `Threshold for ${div.querySelector("#percentiletype").innerText} ${percentile * 100}th percentile` +
-      ` as a ${div.querySelector("#isZScoreInverse").innerText}: ${percentileType === 0 ? `between ${stringify(output[0])} and ${stringify(output[1])}` : stringify(output)}`;
+    let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : trunc(n).toString();
+    div.get("#invnormalcdfoutput").innerText = `invNorm(${percentile}, ${div.get("#isZScoreInverse").value === "true" ? "µ: 0, σ: 1" : `µ: ${getMean()}, σ: ${getStddev()}`}, ` + 
+      `${{'bottom': 'LEFT', 'top': 'RIGHT', 'middle': 'CENTER'}[div.get("#percentiletype").innerText]}) = ` +
+      `${percentileType === 0 ? `{${stringify(output[0])} ${stringify(output[1])}}` : stringify(output)}`;
   }
-  div.querySelector("#invnormalcdf").addEventListener("click", updateInvNormalCDF);
-  div.querySelector("#percentile").addEventListener("keypress", function(e) {if (e.key === "Enter") updateInvNormalCDF()});
+  div.get("#invnormalcdf").addEventListener("click", updateInvNormalCDF);
+  div.get("#percentile").addEventListener("keypress", function(e) {if (e.key === "Enter") updateInvNormalCDF()});
+  
+  function updateSamplingMean() {
+    let mean = getValue(div.get("#meansMean")), stdDev = getValue(div.get("#meansStddev")), n = getValue(div.get("#meansTotal"));
+    div.get("#meansMeanOutput").innerHTML = `µ<sub>x̄</sub>: ${mean}`;
+    div.get("#meansStddevOutput").innerHTML = `σ<sub>x̄</sub>: ${trunc(stdDev/Math.sqrt(n))}`;
+  }
+  div.get("#samplingMeanEnter").addEventListener("click", updateSamplingMean);
+  addEnterEvent(div.get("#meansMean"), updateSamplingMean);
+  addEnterEvent(div.get("#meansStddev"), updateSamplingMean);
+  addEnterEvent(div.get("#meansTotal"), updateSamplingMean);
+  function updateSamplingProportion() {
+    let mean = getValue(div.get("#propProb")), n = getValue(div.get("#propTotal"));
+    div.get("#propMeanOutput").innerHTML = `µ<sub>p̂</sub>: ${mean}`;
+    div.get("#propStddevOutput").innerHTML = `σ<sub>p̂</sub>: ${trunc(Math.sqrt(mean*(1-mean)/n))}`;
+  }
+  div.get("#samplingProportionEnter").addEventListener("click", updateSamplingProportion);
+  addEnterEvent(div.get("#propProb"), updateSamplingProportion);
+  addEnterEvent(div.get("#propTotal"), updateSamplingProportion);
 };
 
 $("#discrete").update = function() {
@@ -158,11 +191,11 @@ $("#discrete").update = function() {
   let cellCount = -1;
   let updateCalcBtn = function() {
     if (Math.abs(getSums()[2] - 1) >= 0.01) {
-      div.querySelector("#calculate").disabled = true;
-      div.querySelector("#calculate").title = "Probabilities must add up to 1, and each value needs a corresponding probability.";
+      div.get("#calculate").disabled = true;
+      div.get("#calculate").title = "Probabilities must add up to 1, and each value needs a corresponding probability.";
     } else {
-      div.querySelector("#calculate").disabled = false;
-      div.querySelector("#calculate").title = "";
+      div.get("#calculate").disabled = false;
+      div.get("#calculate").title = "";
     }
   };
   function addCell() {
@@ -179,8 +212,8 @@ $("#discrete").update = function() {
     prob.querySelector("input").addEventListener("keydown", function(e) {
       if (e.key === "ArrowUp") value.querySelector("input").focus();
     });
-    div.querySelector("#values").appendChild(value);
-    div.querySelector("#probability").appendChild(prob);
+    div.get("#values").appendChild(value);
+    div.get("#probability").appendChild(prob);
     value.querySelector("input").focus();
     value.querySelector("input").addEventListener("input", updateCalcBtn);
     prob.querySelector("input").addEventListener("input", updateCalcBtn);
@@ -188,22 +221,22 @@ $("#discrete").update = function() {
   addCell();
   function removeCell() {
     if (cellCount > 0) {
-      div.querySelector("#values").removeChild(div.querySelector("#value"+cellCount));
-      div.querySelector("#probability").removeChild(div.querySelector("#prob"+cellCount));
+      div.get("#values").removeChild(div.get("#value"+cellCount));
+      div.get("#probability").removeChild(div.get("#prob"+cellCount));
       cellCount -= 1;
-      div.querySelector("#value" + cellCount + " input").focus();
+      div.get("#value" + cellCount + " input").focus();
       updateCalcBtn();
     }
   }
-  div.querySelector("#addCell").addEventListener("click", addCell);
-  div.querySelector("#removeCell").addEventListener("click", removeCell);
+  div.get("#addCell").addEventListener("click", addCell);
+  div.get("#removeCell").addEventListener("click", removeCell);
   function numberify(str) {
     if (/^[ .]*$/.test(str)) return null;
     if (str.includes("/")) return Number(str.split("/")[0])/Number(str.split("/")[1]);
     return Number.isNaN(Number(str)) ? null : Number(str);
   }
-  let getVal = id => numberify(div.querySelector("#value" + id + " input").value);
-  let getProb = id => numberify(div.querySelector("#prob" + id + " input").value);
+  let getVal = id => numberify(div.get("#value" + id + " input").value);
+  let getProb = id => numberify(div.get("#prob" + id + " input").value);
   function getSums() {
     let probSum = 0, avg = 0, variance = 0;
     for (let i = 0; i <= cellCount; i++) {
@@ -219,11 +252,11 @@ $("#discrete").update = function() {
     }
     return [avg, Math.sqrt(variance), probSum];
   }
-  div.querySelector("#calculate").addEventListener("click", function() {
+  div.get("#calculate").addEventListener("click", function() {
     let sums = getSums();
-    div.querySelector("#mean").innerText = "Mean: " + trunc(sums[0]);
-    div.querySelector("#stddev").innerText = "Standard Deviation: " + trunc(sums[1]);
-    div.querySelector("#calculate").disabled = true;
+    div.get("#mean").innerText = "Mean: " + trunc(sums[0]);
+    div.get("#stddev").innerText = "Standard Deviation: " + trunc(sums[1]);
+    div.get("#calculate").disabled = true;
   });
 };
 
@@ -245,7 +278,7 @@ $("#combine").update = function() {
     let modelGroup = "-?((\\d*\\.)?\\d+)?([A-Z](\\*(\\d*\\.)?\\d+)?)?"; // something like -1.1X*5
     let wholeRegex = RegExp("^(" + modelGroup + "([+-]))*" + modelGroup + "$");
     str = str.toUpperCase().replace(/ /g, "");
-    if (!wholeRegex.test(str) || !str.match(/[A-Z]/g).every(letter => letter in dict)) return false;
+    if (!wholeRegex.test(str) || !(str.match(/[A-Z]/g)||[]).every(letter => letter in dict)) return false;
     if (!calcValues) return true;
     let mean = null, stddev = null;
     for (let group of str.match(RegExp(modelGroup, "g"))) {
@@ -278,9 +311,9 @@ $("#combine").update = function() {
   }
 
   function updateCanCalc() {
-    div.querySelector("#calculate").disabled = false;
+    div.get("#calculate").disabled = false;
   }
-  div.querySelector("#combiner").addEventListener("input", function() {
+  div.get("#combiner").addEventListener("input", function() {
     updateCanCalc();
   });
 
@@ -291,27 +324,27 @@ $("#combine").update = function() {
     newDiv.innerHTML = `<span>Distribution name:</span> <input class="distname"></input>
     <span>µ: </span><input class="distmean"></input> <span>σ: </span><input class="diststddev"></input>
     <button>✖</button>`;
-    newDiv.querySelector(".distname").addEventListener("input", function() {
+    newDiv.get(".distname").addEventListener("input", function() {
       if (this.value.length > 1) this.value = this.value[0];
       updateCanCalc();
     });
-    newDiv.querySelector("button").addEventListener("click", function() {
+    newDiv.get("button").addEventListener("click", function() {
       this.parentElement.parentElement.removeChild(this.parentElement);
       updateCanCalc();
     });
-    newDiv.querySelector(".distmean").addEventListener("input", updateCanCalc);
-    newDiv.querySelector(".diststddev").addEventListener("input", updateCanCalc);
-    div.querySelector("#distributions").appendChild(newDiv);
-    newDiv.querySelector(".distname").focus();
+    newDiv.get(".distmean").addEventListener("input", updateCanCalc);
+    newDiv.get(".diststddev").addEventListener("input", updateCanCalc);
+    div.get("#distributions").appendChild(newDiv);
+    newDiv.get(".distname").focus();
     return newDiv;
   }
 
   addDistribution();
-  div.querySelector("#addDist").addEventListener("click", addDistribution);
+  div.get("#addDist").addEventListener("click", addDistribution);
 
   function getDistributions() {
     let dict = Object.create(null);
-    for (let distribution of div.querySelector("#distributions").children) {
+    for (let distribution of div.get("#distributions").children) {
       let name = distribution.querySelector(".distname").value, mean = distribution.querySelector(".distmean").value,
         stddev = distribution.querySelector(".diststddev").value;
       if ([name, mean, stddev].every(val => val != "")) {
@@ -321,50 +354,50 @@ $("#combine").update = function() {
     return dict;
   }
 
-  div.querySelector("#calculate").addEventListener("click", function() {
-    div.querySelector("#calculate").disabled = true;
-    let values = parseCombination(div.querySelector("#combiner").value, getDistributions());
+  div.get("#calculate").addEventListener("click", function() {
+    div.get("#calculate").disabled = true;
+    let values = parseCombination(div.get("#combiner").value, getDistributions());
     if (values !== false) {
-      div.querySelector("#combinedMean").innerText = "µ: " + trunc(values[0]);
-      div.querySelector("#combinedStddev").innerText = "σ: " + trunc(values[1]);
-      div.querySelector("#copy").disabled = false;
+      div.get("#combinedMean").innerText = "µ: " + trunc(values[0]);
+      div.get("#combinedStddev").innerText = "σ: " + trunc(values[1]);
+      div.get("#copy").disabled = false;
     } else {
-      div.querySelector("#combinedMean").innerText = "";
-      div.querySelector("#combinedStddev").innerText = "";
+      div.get("#combinedMean").innerText = "";
+      div.get("#combinedStddev").innerText = "";
     }
   });
-  div.querySelector("#combiner").addEventListener("keypress", function(e) {
-    if (e.key === "Enter") div.querySelector("#calculate").click();
+  div.get("#combiner").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") div.get("#calculate").click();
   });
 
-  div.querySelector("#copy").addEventListener("click", function() {
+  div.get("#copy").addEventListener("click", function() {
     this.disabled = true;
     let newDist = addDistribution();
-    newDist.querySelector(".distmean").value = div.querySelector("#combinedMean").innerText.replace("µ: ", "");
-    newDist.querySelector(".diststddev").value = div.querySelector("#combinedStddev").innerText.replace("σ: ", "");
+    newDist.querySelector(".distmean").value = div.get("#combinedMean").innerText.replace("µ: ", "");
+    newDist.querySelector(".diststddev").value = div.get("#combinedStddev").innerText.replace("σ: ", "");
   });
 };
 
 $("#geometrical").update = function() {
   let div = this;
-  div.innerHTML = `<h2>Geometric Distribution</h2><span>p = </span><input id="prob" placeholder=".5" style="width:40px;"></input>
+  div.innerHTML = `<h2>Geometric Distribution</h2><span>p = </span><input id="prob" placeholder=".5" class="limited"></input>
   <h3>Expected value and standard deviation</h3><span>Expected value of trials until success from 1 to </span> 
   <input id="trials" placeholder="&infin;" style="width:30px;"> <button id="enterExpected">Enter!</button>
   <br><span id="expectedMean"></span><br><span id="expectedStddev"></span><h3>Geometrical Probability Distribution Functions</h3>
   <span>Probability of getting a success <button id="geomCdfOrPdf" value="pdf">exactly on</button> trial #</span><input id="geomDfTrials" style="width:30px" placeholder="1"></input>
   <button id="geomDfEnter">Enter!</button><br><span id="geomDfOutput"></span>
-  <h2>Binomial Distribution</h2><span>p = </span><input id="binomProb" placeholder=".5" style="width:40px;"></input>
-  <br><span>n = </span><input id="binomTotal" placeholder="2" style="width:40px;"></input>
+  <h2>Binomial Distribution</h2><span>p = </span><input id="binomProb" placeholder=".5" class="limited"></input>
+  <br><span>n = </span><input id="binomTotal" placeholder="2" class="limited"></input>
   <h3>Expected value and standard deviation</h3><span>Calculate expected value and standard deviation</span><button id="binomEnterExpected">Enter!</button>
   <br><span id="binomExpectedMean"></span><br><span id="binomExpectedStddev"></span><h3>Binomial Probability Distribution Functions</h3>
   <span>Probability of getting<button id="binomCdfOrPdf" value="pdf">exactly</button></span><input id="binomDfTrials" style="width:30px" placeholder="1"></input>
   <span>successes</span><button id="binomDfEnter">Enter!</button><br><span id="binomDfOutput"></span>`;
   function getP() {
-    return Number(div.querySelector("#prob").value || div.querySelector("#prob").placeholder);
+    return Number(div.get("#prob").value || div.get("#prob").placeholder);
   }
   function updateExpectedValues() {
     let mean = null, stddev = null, p = getP();
-    let trials = div.querySelector("#trials").value === "" ? null : Number(div.querySelector("#trials").value);
+    let trials = div.get("#trials").value === "" ? null : Number(div.get("#trials").value);
     if (trials === null) {
       mean = 1/p;
       stddev = Math.sqrt(1-p)/p;
@@ -377,12 +410,12 @@ $("#geometrical").update = function() {
       mean = dist.reduce((a, b) => a+b[0]*b[1], 0);
       stddev = Math.sqrt(dist.reduce((a, b) => a+(b[0]-mean)**2 * b[1], 0));
     }
-    div.querySelector("#expectedMean").innerText = "µ: " + trunc(mean, 6);
-    div.querySelector("#expectedStddev").innerText = "σ: " + trunc(stddev, 6);
+    div.get("#expectedMean").innerText = "µ: " + trunc(mean, 6);
+    div.get("#expectedStddev").innerText = "σ: " + trunc(stddev, 6);
   }
-  div.querySelector("#enterExpected").addEventListener("click", updateExpectedValues);
+  div.get("#enterExpected").addEventListener("click", updateExpectedValues);
   
-  div.querySelector("#geomCdfOrPdf").addEventListener("click", function() {
+  div.get("#geomCdfOrPdf").addEventListener("click", function() {
     if (this.value === "pdf") {
       this.value = "cdf";
       this.innerText = "on or before";
@@ -392,8 +425,8 @@ $("#geometrical").update = function() {
     }
   });
   function updateGeomDF() {
-    let p = getP(), trials = Number(div.querySelector("#geomDfTrials").value || div.querySelector("#geomDfTrials").placeholder);
-    let isPdf = div.querySelector("#geomCdfOrPdf").value === "pdf";
+    let p = getP(), trials = Number(div.get("#geomDfTrials").value || div.get("#geomDfTrials").placeholder);
+    let isPdf = div.get("#geomCdfOrPdf").value === "pdf";
     let probability;
     if (isPdf) {
       probability = p * (1-p)**(trials-1);
@@ -403,20 +436,20 @@ $("#geometrical").update = function() {
         probability += p * (1-p)**(i);
       }
     }
-    div.querySelector("#geomDfOutput").innerText = `geomet${isPdf ? "P" : "C"}DF(${p}, ${trials}) = ${trunc(probability, 6)}`;
+    div.get("#geomDfOutput").innerText = `geomet${isPdf ? "P" : "C"}DF(${p}, ${trials}) = ${trunc(probability, 6)}`;
   }
-  div.querySelector("#geomDfEnter").addEventListener("click", updateGeomDF);
+  div.get("#geomDfEnter").addEventListener("click", updateGeomDF);
   function getBinomValues() {
-    return [Number(div.querySelector("#binomProb").value || div.querySelector("#binomProb").placeholder),
-      Number(div.querySelector("#binomTotal").value || div.querySelector("#binomTotal").placeholder)];
+    return [Number(div.get("#binomProb").value || div.get("#binomProb").placeholder),
+      Number(div.get("#binomTotal").value || div.get("#binomTotal").placeholder)];
   }
   function updateBinomExpectedValues() {
     let mean = null, stddev = null, p = getBinomValues();
-    div.querySelector("#binomExpectedMean").innerText = "µ: " + trunc(p[0]*p[1], 6);
-    div.querySelector("#binomExpectedStddev").innerText = "σ: " + trunc(Math.sqrt(p[0]*p[1]*(1-p[0])), 6);
+    div.get("#binomExpectedMean").innerText = "µ: " + trunc(p[0]*p[1], 6);
+    div.get("#binomExpectedStddev").innerText = "σ: " + trunc(Math.sqrt(p[0]*p[1]*(1-p[0])), 6);
   }
-  div.querySelector("#binomEnterExpected").addEventListener("click", updateBinomExpectedValues);
-  div.querySelector("#binomCdfOrPdf").addEventListener("click", function() {
+  div.get("#binomEnterExpected").addEventListener("click", updateBinomExpectedValues);
+  div.get("#binomCdfOrPdf").addEventListener("click", function() {
     if (this.value === "pdf") {
       this.value = "cdf";
       this.innerText = "at most";
@@ -433,8 +466,8 @@ $("#geometrical").update = function() {
       }
       return Math.E**total;
     }
-    let p = getBinomValues(), trials = Number(div.querySelector("#binomDfTrials").value || div.querySelector("#binomDfTrials").placeholder);
-    let isPdf = div.querySelector("#binomCdfOrPdf").value === "pdf";
+    let p = getBinomValues(), trials = Number(div.get("#binomDfTrials").value || div.get("#binomDfTrials").placeholder);
+    let isPdf = div.get("#binomCdfOrPdf").value === "pdf";
     let probability;
     if (isPdf) {
       probability = binomPdf(p[1], p[0], trials);
@@ -444,12 +477,12 @@ $("#geometrical").update = function() {
         probability += binomPdf(p[1], p[0], i);
       }
     }
-    div.querySelector("#binomDfOutput").innerText = `binom${isPdf ? "P" : "C"}DF(${p[1]}, ${p[0]}, ${trials}) = ${trunc(probability, 6)}`;
+    div.get("#binomDfOutput").innerText = `binom${isPdf ? "P" : "C"}DF(${p[1]}, ${p[0]}, ${trials}) = ${trunc(probability, 6)}`;
   }
-  div.querySelector("#binomDfEnter").addEventListener("click", updatebinomDF);
-  addEnterEvent(div.querySelector("#binomDfTrials"), updatebinomDF);
-  addEnterEvent(div.querySelector("#geomDfTrials"), updateGeomDF);
-  addEnterEvent(div.querySelector("#binomTotal"), updateBinomExpectedValues);
-  addEnterEvent(div.querySelector("#binomProb"), updateBinomExpectedValues);
-  addEnterEvent(div.querySelector("#trials"), updateExpectedValues);
+  div.get("#binomDfEnter").addEventListener("click", updatebinomDF);
+  addEnterEvent(div.get("#binomDfTrials"), updatebinomDF);
+  addEnterEvent(div.get("#geomDfTrials"), updateGeomDF);
+  addEnterEvent(div.get("#binomTotal"), updateBinomExpectedValues);
+  addEnterEvent(div.get("#binomProb"), updateBinomExpectedValues);
+  addEnterEvent(div.get("#trials"), updateExpectedValues);
 };
