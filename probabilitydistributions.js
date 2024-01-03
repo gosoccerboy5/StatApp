@@ -7,7 +7,7 @@ function getValue(input) {
 }
 
 HTMLDivElement.prototype.get = function(selector) {
-  return this.querySelector(selector); 
+  return this.querySelector(selector);
 };
 
 function normalRange(bottom, top, mean, stddev, zScores=true) {
@@ -47,10 +47,9 @@ function invNormalRange(percentile, location, mean, stddev, zScore=true) {
   if (location !== 0) {
     return trunc(zScore ? curr : curr*stddev+mean);
   } else {
-    return [curr, -curr].map(n => trunc(zScore ? n : n*stddev+mean));
+    return [-Math.abs(curr), Math.abs(curr)].map(n => trunc(zScore ? n : n*stddev+mean));
   }
 }
-
 
 function trunc(value, power=5) {
   return Math.round(value * 10**power) / 10**power;
@@ -84,11 +83,11 @@ $("#normal").update = function() {
   <br><span id="zScoreOutput"></span><br>
   <input id="invZScore" placeholder="Input a zScore..."></input> <button id="getInvZScore">Get value</button>
   <br><span id="invZScoreOutput"></span><br>
-  <span>Normal Cumulative Distribution Function</span> <button id="normalcdf">Enter!</button><br><span>Left Bound:</span> <input id="leftbound" placeholder="unbounded"> 
-  Right Bound: <input id="rightbound" placeholder="unbounded"> as <button id="isZScores" value="true">zScores</button><br><span id="normalcdfoutput"></span>
+  <span>Normal Cumulative Distribution Function</span> <button id="normalcdf">Enter!</button><br><span>Left Bound:</span> <input id="leftbound" placeholder="unbounded">
+  Right Bound: <input id="rightbound" placeholder="unbounded"> as <button id="isZScores" value="false">values</button><br><span id="normalcdfoutput"></span>
   <br><br><span>Inverse Normal Cumulative Distribution Function</span> <button id="invnormalcdf">Enter!</button><br>
   <span>Find</span> <button id="percentiletype" value="-1" style="min-width:60px">bottom</button> <input id="percentile" style="width: 20px" placeholder="25"><span>% percentile as a</span>
-  <button id="isZScoreInverse" value="true">zScore</button><br><span id="invnormalcdfoutput"></span>
+  <button id="isZScoreInverse" value="false">value</button><br><span id="invnormalcdfoutput"></span>
   <h2>Sampling Distributions</h2>
   <span>Sampling Distribution of Means</span><button id="samplingMeanEnter">Enter!</button><br><span>µ = </span><input id="meansMean" placeholder="0" class="limited"></input>
   <br><span>σ = </span><input id="meansStddev" placeholder="1" class="limited"></input><br><span>n = </span><input id="meansTotal" placeholder="30" class="limited"></input>
@@ -134,7 +133,7 @@ $("#normal").update = function() {
     let mean = getMean(); stddev = getStddev();
 	let isZScores = div.get("#isZScores").value === "true";
     let output = normalRange(numberify(div.get("#leftbound").value), numberify(div.get("#rightbound").value),   mean, stddev, isZScores);
-    div.get("#normalcdfoutput").innerText = `normalCDF(${div.get("#leftbound").value || "-∞"}, ${div.get("#rightbound").value || "∞"}` + 
+    div.get("#normalcdfoutput").innerText = `normalCDF(${div.get("#leftbound").value || "-∞"}, ${div.get("#rightbound").value || "∞"}` +
     `${div.get("#isZScores").innerText === "zScores" ? "" : `, µ: ${getMean()}, σ: ${getStddev()}`}) = ${trunc(output)}`
   }
   div.get("#normalcdf").addEventListener("click", updateNormalCDF);
@@ -157,13 +156,13 @@ $("#normal").update = function() {
     let mean = getMean(); stddev = getStddev();
     let output = invNormalRange(percentile, percentileType, mean, stddev, isZScore);
     let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : trunc(n).toString();
-    div.get("#invnormalcdfoutput").innerText = `invNorm(${percentile}, ${div.get("#isZScoreInverse").value === "true" ? "µ: 0, σ: 1" : `µ: ${getMean()}, σ: ${getStddev()}`}, ` + 
+    div.get("#invnormalcdfoutput").innerText = `invNorm(${percentile}, ${div.get("#isZScoreInverse").value === "true" ? "µ: 0, σ: 1" : `µ: ${getMean()}, σ: ${getStddev()}`}, ` +
       `${{'bottom': 'LEFT', 'top': 'RIGHT', 'middle': 'CENTER'}[div.get("#percentiletype").innerText]}) = ` +
       `${percentileType === 0 ? `{${stringify(output[0])} ${stringify(output[1])}}` : stringify(output)}`;
   }
   div.get("#invnormalcdf").addEventListener("click", updateInvNormalCDF);
   div.get("#percentile").addEventListener("keypress", function(e) {if (e.key === "Enter") updateInvNormalCDF()});
-  
+
   function updateSamplingMean() {
     let mean = getValue(div.get("#meansMean")), stdDev = getValue(div.get("#meansStddev")), n = getValue(div.get("#meansTotal"));
     div.get("#meansMeanOutput").innerHTML = `µ<sub>x̄</sub>: ${mean}`;
@@ -268,7 +267,7 @@ $("#combine").update = function() {
   <input id="combiner"><br><button id="calculate" disabled style="margin-left:-3px;">Calculate µ and σ</button>
   <button id="copy" disabled>Copy to new distribution</button><br><span id="combinedMean"></span><br><span id="combinedStddev"></span>
   <br><details><summary>Help</summary><p>Enter random variables/probability distributions under the Probability Distributions section
-  with a 1 letter name. Under the Combining Variables section, you can add and subtract different random variables, 
+  with a 1 letter name. Under the Combining Variables section, you can add and subtract different random variables,
   as well as multiplying them by constants and repeating them.
   </p><p>Example: <code>Y*2 - 3X</code><br><code>Y*2</code> is the same as repeating the random variable <code>Y</code> twice, or <code>Y+Y</code>.<br>
   <code>- 3X</code> means we are subtracting the random variable <code>X</code> which is multiplied by a scale of 3.<br>
@@ -381,7 +380,7 @@ $("#combine").update = function() {
 $("#geometrical").update = function() {
   let div = this;
   div.innerHTML = `<h2>Geometric Distribution</h2><span>p = </span><input id="prob" placeholder=".5" class="limited"></input>
-  <h3>Expected value and standard deviation</h3><span>Expected value of trials until success from 1 to </span> 
+  <h3>Expected value and standard deviation</h3><span>Expected value of trials until success from 1 to </span>
   <input id="trials" placeholder="&infin;" style="width:30px;"> <button id="enterExpected">Enter!</button>
   <br><span id="expectedMean"></span><br><span id="expectedStddev"></span><h3>Geometrical Probability Distribution Functions</h3>
   <span>Probability of getting a success <button id="geomCdfOrPdf" value="pdf">exactly on</button> trial #</span><input id="geomDfTrials" style="width:30px" placeholder="1"></input>
@@ -414,7 +413,7 @@ $("#geometrical").update = function() {
     div.get("#expectedStddev").innerText = "σ: " + trunc(stddev, 6);
   }
   div.get("#enterExpected").addEventListener("click", updateExpectedValues);
-  
+
   div.get("#geomCdfOrPdf").addEventListener("click", function() {
     if (this.value === "pdf") {
       this.value = "cdf";
@@ -485,4 +484,217 @@ $("#geometrical").update = function() {
   addEnterEvent(div.get("#binomTotal"), updateBinomExpectedValues);
   addEnterEvent(div.get("#binomProb"), updateBinomExpectedValues);
   addEnterEvent(div.get("#trials"), updateExpectedValues);
+};
+
+$("#chisquare").update = function() {
+  let div = this;
+  div.innerHTML = `<h2>𝜒² Test</h2><h3>𝜒² Cumulative Distribution Function</h3><span>Left Bound: </span>
+  <input id="chiCDFleftbound" placeholder="0" class="limited"></input><span> Right Bound: </span>
+  <input id="chiCDFrightbound" placeholder="∞" class="limited"></input>
+  <span> Degrees of freedom: </span><input id="chiCDFdegrees" placeholder="1" class="limited"><button id="chiCDFenter">Enter!</button><br>
+  <span id="chiCDFoutput"></span><h2>𝜒² Test for Homogeneity/Independence</h2>
+  <button id="indAddRow" style="margin-left:0px;">+ row</button><button id="indMinusRow">- row</button>
+  <button id="indAddColumn" style="margin-left:0px;">+ column</button><button id="indMinusColumn">- column</button>
+  <table><tbody id="indTable"></tbody></table><span>Calculate chi-squared and p-value</span> <button id="enterInd">Enter!</button>
+  <button id="clearExpected" disabled>Clear expected values</button>
+  <br><span id="indOutput1"></span><br><span id="indOutput2"></span><h2>𝜒² Test for Goodness of Fit</h2><table><tbody id="gofTable"><tr>
+  <td>Observed:</td></tr><tr><td>Expected:</td></tr></tbody></table><button id="addCell" class="tablebtn">+</button>
+  <button id="removeCell" class="tablebtn">-</button><br><span>Calculate chi-squared and p-value with expected values as </span>
+  <button id="gofIsPercent" value="false">raw values</button> <button id="gofEnter">Enter!</button><br><span id="gofOutput1"></span>
+  <br><span id="gofOutput2"></span>
+  `;
+
+  function chiSquareTest(observed, expected, isPercentages=false) {
+    if (isPercentages) {
+      let observedTotal = observed.reduce((a, b) => a+b), percentagesTotal = expected.reduce((a, b) => a+b);
+      expected = expected.map(n => n*observedTotal/percentagesTotal);
+    }
+    let total = 0;
+    for (let i = 0; i < observed.length; i++) {
+      total += (observed[i]-expected[i])**2 / expected[i];
+    }
+    return total;
+  }
+
+  function gamma(x) { // only works on positive numbers where x is either integer or ends in .5
+    let init = x % 1 === 0.5 ? Math.sqrt(Math.PI) : 1;
+    for (let i = -(x % 1 - 1); i < x; i++) {
+      init *= i;
+    }
+    return init;
+  }
+
+  function chiSquarePDF(x, df) {
+    return x**(df/2-1) * Math.E**(-x/2) / 2**(df/2) / gamma(df/2);
+  }
+
+  function chiSquareCDF(start, end, df, round=false) {
+    let value = 0, step = 0.0001;
+    if (end === null || end >= 99) value = 1-chiSquareCDF(0, start, df);
+    else {
+      for (let i = Math.max(start, 0); i <= end; i += step) {
+        let pdf = chiSquarePDF(i, df);
+        value += step * (pdf === Infinity ? 0 : pdf);
+      }
+    }
+    if (value <= 0) return 0;
+    return round ? trunc(value, Math.min(Math.ceil(Math.abs(Math.log10(value)))+2, 5)) : value;
+  }
+
+  function generateExpectedValues(table) {
+    let expectedValues = [], columnTotals = [];
+    let rowTotals = table.map(row => row.reduce((a, b) => a+b));
+    for (let i = 0; i < table[0].length; i++) {
+      columnTotals.push(table.map(row => row[i]).reduce((a, b) => a+b));
+    }
+    let total = rowTotals.reduce((a, b) => a+b);
+    for (let i = 0; i < table.length; i++) {
+      expectedValues.push([]);
+      for (let j = 0; j < table[i].length; j++) {
+        expectedValues.at(-1).push(rowTotals[i] * columnTotals[j] / total);
+      }
+    }
+    return expectedValues;
+  }
+
+  function updateCDF() {
+    let leftbound = Number(div.get("#chiCDFleftbound").value || 0),
+      rightbound = div.get("#chiCDFrightbound").value ? Number(div.get("#chiCDFrightbound").value) : null,
+      degrees = Number(div.get("#chiCDFdegrees").value || div.get("#chiCDFdegrees").placeholder);
+    div.get("#chiCDFoutput").innerText =
+      `𝜒²CDF(${leftbound}, ${rightbound || "∞"}, ${degrees}) = ${chiSquareCDF(leftbound, rightbound, degrees, true)}`;
+  }
+  div.get("#chiCDFenter").addEventListener("click", updateCDF);
+  addEnterEvent(div.get("#chiCDFleftbound"), updateCDF);
+  addEnterEvent(div.get("#chiCDFrightbound"), updateCDF);
+  addEnterEvent(div.get("#chiCDFdegrees"), updateCDF);
+
+  function gofAddCell() {
+    let newCell = document.createElement("td");
+    newCell.innerHTML = "<input></input>";
+    div.get("#gofTable").children[0].appendChild(newCell);
+    newCell.children[0].focus();
+    div.get("#gofTable").children[1].appendChild(newCell.cloneNode(true));
+  }
+  gofAddCell(); gofAddCell();
+  function gofRemoveCell() {
+    for (let el of div.get("#gofTable").children) {
+      if (el.children.length > 3) {
+        el.removeChild(el.children[el.children.length-1]);
+      }
+    }
+  }
+  div.get("#removeCell").addEventListener("click", gofRemoveCell);
+  div.get("#addCell").addEventListener("click", gofAddCell);
+  div.get("#gofIsPercent").addEventListener("click", function() {
+    this.value = this.value === "false" ? "true" : "false";
+    this.innerText = this.value === "true" ? "percentages" : "raw values";
+  });
+  function updateGoodnessofFit() {
+    let rows = [...div.get("#gofTable").children].slice(0, 2);
+    rows = rows.map(row => [...row.children].slice(1)
+      .map(cell => cell.children[0].value === "" ? null : Number(cell.children[0].value)).filter(cell => cell !== null));
+    if (rows[0].length === 0 || rows[1].length === 1 || rows[0].length !== rows[1].length) return;
+    let chiSquared = chiSquareTest(rows[0], rows[1], div.get("#gofIsPercent").value === "true");
+    let p = chiSquareCDF(chiSquared, Infinity, rows[0].length-1, true);
+    div.get("#gofOutput1").innerText = `𝜒²: ${trunc(chiSquared)}`;
+    div.get("#gofOutput2").innerText = `p-value: ${p}`;
+  }
+  div.get("#gofEnter").addEventListener("click", updateGoodnessofFit);
+
+  let indGetRows = () => div.get("#indTable").children.length;
+  let indGetColumns = () => div.get("#indTable").children[0]?.children.length || 0;
+  function indAddRow() {
+    let tr = document.createElement("tr");
+    let newCell = document.createElement("td");
+    newCell.innerHTML = "<input/>";
+    for (let i = 0; i < indGetColumns(); i++) {
+      tr.appendChild(newCell.cloneNode(true));
+    }
+    div.get("#indTable").appendChild(tr);
+  }
+  function indAddColumn() {
+    let tr = document.createElement("tr");
+    let newCell = document.createElement("td");
+    newCell.innerHTML = "<input/>";
+    for (let i = 0; i < indGetRows(); i++) {
+      div.get("#indTable").children[i].appendChild(newCell.cloneNode(true));
+    }
+  }
+  function removeLastChild(div) {
+    if (div.children.length > 0) div.removeChild(div.children[div.children.length-1]);
+  }
+  function indRemoveRow() {
+    if (indGetRows() > 2) removeLastChild(div.get("#indTable"));
+  }
+  function indRemoveColumn() {
+    if (indGetColumns() > 2) {
+      for (let i = 0; i < indGetRows(); i++) {
+        removeLastChild(div.get("#indTable").children[i]);
+      }
+    }
+  }
+  indAddRow(); indAddColumn(); indAddRow(); indAddColumn();
+  div.get("#indAddRow").addEventListener("click", indAddRow);
+  div.get("#indAddColumn").addEventListener("click", indAddColumn);
+  div.get("#indMinusRow").addEventListener("click", indRemoveRow);
+  div.get("#indMinusColumn").addEventListener("click", indRemoveColumn);
+  function collectIndValues() {
+    let observed = [];
+    for (let i = 0; i < indGetRows(); i++) {
+      observed.push([...div.get("#indTable").children[i].children]
+        .map(cell => /^ *$/.test(cell.children[0].value) ? null : Number(cell.children[0].value)));
+      if (observed.at(-1).every(n => n === null)) {
+        observed.splice(observed.length-1, 1);
+        break;
+      }
+    }
+    if (observed.length < 2) return null;
+    for (let row of observed) {
+      let idx = row.length-1, curr = row.at(-1);
+      while (curr === null) {
+        row.splice(idx, 1);
+        idx -= 1;
+        curr = row[idx];
+      }
+      if (row.includes(null)) return null;
+    }
+    for (let row of observed) {
+      if (row.length < 2 || row.length !== observed[0].length) return null;
+    }
+    return observed;
+  }
+  function updateIndValues() {
+    let table = collectIndValues();
+    if (table === null) return;
+    let expectedValues = generateExpectedValues(table);
+    clearExpected();
+    for (let i = 0; i < expectedValues.length; i++) {
+      let row = expectedValues[i];
+      for (let j = 0; j < row.length; j++) {
+        let span = document.createElement("span");
+        span.innerText = trunc(row[j], 2);
+        div.get("#indTable").children[i].children[j].appendChild(span);
+      }
+    }
+    div.get("#clearExpected").disabled = false;
+    let chiSquared = chiSquareTest(table.flat(), expectedValues.flat());
+    let p = chiSquareCDF(chiSquared, null, (table.length-1)*(table[0].length-1), true);
+    div.get("#indOutput1").innerText = `𝜒²: ${trunc(chiSquared)}`;
+    div.get("#indOutput2").innerText = `p-value: ${p}`;
+  }
+  function clearExpected() {
+    for (let i = 0; i < indGetRows(); i++) {
+      for (let j = 0; j < indGetColumns(); j++) {
+        let cell = div.get("#indTable").children[i].children[j];
+        while (cell.children.length > 1) {
+          removeLastChild(cell);
+        }
+      }
+    }
+    div.get("#clearExpected").disabled = true;
+  }
+  div.get("#enterInd").addEventListener("click", updateIndValues);
+  div.get("#clearExpected").addEventListener("click", clearExpected);
+  document.activeElement.blur();
 };
