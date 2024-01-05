@@ -57,6 +57,14 @@ function trunc(value, power=5) {
 
 let $ = document.querySelector.bind(document);
 
+$("#showcalculator").addEventListener("click", function() {
+  $("#showcalculator").disabled = true;
+  calculatorElement();
+  $(".removeCalculator").addEventListener("click", function() {
+    $("#showcalculator").disabled = false;
+  });
+});
+
 $("#widgetselect").value = "";
 $("#widgetselect").title = "Select a widget:";
 $("#widgetselect").addEventListener("change", function(e) {
@@ -93,7 +101,13 @@ $("#normal").update = function() {
   <br><span>σ = </span><input id="meansStddev" placeholder="1" class="limited"></input><br><span>n = </span><input id="meansTotal" placeholder="30" class="limited"></input>
   <br><span id="meansMeanOutput"></span><br><span id="meansStddevOutput"></span><br>
   <span>Sampling Distribution of Proportions</span><button id="samplingProportionEnter">Enter!</button><br><span>p = </span><input id="propProb" placeholder=".5" class="limited"></input>
-  <br><span>n = </span><input id="propTotal" placeholder="30" class="limited"></input><br><span id="propMeanOutput"></span><br><span id="propStddevOutput"></span>`;
+  <br><span>n = </span><input id="propTotal" placeholder="30" class="limited"></input><br><span id="propMeanOutput"></span><br><span id="propStddevOutput"></span>
+  <h3>Two-sample z-test (proportions)</h3><table><tbody id="twosampletable"><tr><td></td><td>x<sub>1</sub></td><td>x<sub>2</sub></td></tr><tr><td>Success</td><td>
+  <input id="samplex1success"></input></td><td><input id="samplex2success"></input></td></tr><tr><td>Total</td><td><input id="samplex1total"></input></td>
+  <td><input id="samplex2total"></input></tr></tbody></table><span>Calculate
+  <input id="confidence" placeholder="95" class="limited"></input>% confidence interval for x<sub>1</sub> - x<sub>2</sub>
+  <button id="calcConfidence">Enter!</button><br><span id="confidenceOutput"></span><br><span>Calculate z and p-value for H<sub>a</sub>
+  <button id="alternative" value="-1"></button> <button id="calcHypothesis">Enter!</button><br><span id="alternativeOutput"></span>`;
   function getMean() {
     return Number(div.get("#mean").value === "" ? div.get("#mean").placeholder : div.get("#mean").value);
   }
@@ -180,6 +194,39 @@ $("#normal").update = function() {
   div.get("#samplingProportionEnter").addEventListener("click", updateSamplingProportion);
   addEnterEvent(div.get("#propProb"), updateSamplingProportion);
   addEnterEvent(div.get("#propTotal"), updateSamplingProportion);
+
+  function get2SampleValues() {
+    return ["#samplex1success", "#samplex2success", "#samplex1total", "#samplex2total"]
+      .map(str => div.get(str)).map(cell => Number(cell.value));
+  }
+  function calcConfidence() {
+    let values = get2SampleValues();
+    let proportions = [values[0]/values[2], values[1]/values[3]];
+    let mean = proportions[0]-proportions[1];
+    let confidence = Number(div.get("#confidence").value || div.get("#confidence").placeholder) / 100;
+    let zscore = invNormalRange(confidence, 0, 0, 1)[1];
+    let stdError = Math.sqrt(proportions[0]*(1-proportions[0])/values[2]+proportions[1]*(1-proportions[1])/values[3]);
+    div.get("#confidenceOutput").innerText = `${confidence*100}% confidence interval = ` +
+      `${trunc(mean)}±${trunc(zscore * stdError, 3)} = (${trunc(mean-zscore*stdError, 3)}, ${trunc(mean+zscore*stdError, 3)})`;
+  }
+  div.get("#calcConfidence").addEventListener("click", calcConfidence);
+  addEnterEvent(div.get("#confidence"), calcConfidence);
+  div.get("#alternative").addEventListener("click", function() {
+    this.value = (Number(this.value) + 1) % 3;
+    this.innerHTML = `x<sub>1</sub> - x<sub>2</sub> ${["≠", ">", "<"][this.value]} 0`;
+  });
+  div.get("#alternative").click();
+  function calcHypothesis() {
+    let values = get2SampleValues();
+    let proportions = [values[0]/values[2], values[1]/values[3]];
+    let mean = proportions[0]-proportions[1];
+    let pooled = (values[0]+values[1])/(values[2]+values[3]);
+    let z = mean/Math.sqrt(pooled*(1-pooled)/values[2]+pooled*(1-pooled)/values[3]);
+    let pvalue = [() => 1-normalRange(-Math.abs(z), Math.abs(z), 0, 1), () => normalRange(z, null, 0, 1), () => normalRange(null, z, 0, 1)][
+      Number(div.get("#alternative").value)]();
+    div.get("#alternativeOutput").innerHTML = `z = ${trunc(z)}; p-value of ${div.get("#alternative").innerHTML} = ${trunc(pvalue)}`;
+  }
+  div.get("#calcHypothesis").addEventListener("click", calcHypothesis);
 };
 
 $("#discrete").update = function() {
