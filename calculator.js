@@ -174,6 +174,7 @@ function calculatorElement() {
   div.querySelector(".removeCalculator").addEventListener("click", function() {
     document.body.removeChild(div);
   });
+  input.focus();
 }
 
 addStyle();
