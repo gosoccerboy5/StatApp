@@ -20,30 +20,32 @@ function normalRange(bottom, top, mean, stddev, zScores=true) {
     let backwards = bottom > top;
     if (top < bottom) {bottom += top; top = bottom - top; bottom = bottom - top;}
     let sum = 0, currentStep = step;
-    for (let i = bottom; i < top;) {
+    for (let i = bottom; i < top-step;) {
       let val = fn(i);
-      sum += val * currentStep;
+      sum += (val+fn(i+step))/2 * currentStep;
       currentStep = Math.min(step, top-i);
       i += currentStep;
     }
-    return Math.round(sum * 10000)/10000 * (backwards ? -1 : 1);
+    return sum * (backwards ? -1 : 1);
   }
   let normalDistributionFn = x => ((1/Math.sqrt(2*Math.PI))*(Math.E**(-.5*(x**2))));
-  return Math.round((integrate(normalDistributionFn, bottom || 0, top || 0, 0.0001) +
-    [bottom, top].filter(x=>x===null).length * 0.5)*10000)/10000;
+  return integrate(normalDistributionFn, bottom || 0, top || 0, 0.0001) +
+    [bottom, top].filter(x=>x===null).length * 0.5;
 }
 
 function invNormalRange(percentile, location, mean, stddev, zScore=true) {
   percentile = Math.min(Math.max(percentile, 0), 1);
   if (percentile === 1 || (percentile === 0 && location !== 0)) return location === 0 ? [-Infinity, Infinity] : (location === 1 ? -1 : 1) * (percentile === 0 ? -1 : 1) * Infinity;
-  let increment = (Math.abs(percentile-0.5)/(percentile-0.5) || 1) * 0.0001, curr = 0, sum = 0;
+  let increment = (Math.abs(percentile-0.5)/(percentile-0.5) || 1) * 0.000001, curr = 0, sum = 0;
   let normalDistributionFn = x => ((1/Math.sqrt(2*Math.PI))*(Math.E**(-.5*(x**2))));
   let cond = location === 0 ?  () => Math.abs(sum) < percentile/2 : () => Math.abs(sum) < Math.abs(percentile-0.5);
   while (cond()) {
-    sum += normalDistributionFn(curr) * increment;
+    sum += (normalDistributionFn(curr)+normalDistributionFn(curr+increment))/2 * increment;
     curr += increment;
   }
+
   curr = location === 1 ? -curr : curr;
+  console.log(curr)
   if (location !== 0) {
     return trunc(zScore ? curr : curr*stddev+mean);
   } else {
@@ -64,7 +66,7 @@ let preciseGammaCache = Object.create(null);
 function preciseGamma(n) {
   if (preciseGammaCache[n] !== undefined) return preciseGammaCache[n];
   if (n%1 === 0 || n%1 === 0.5) return gamma(n);
-  let step = 0.0001, value = 0;
+  let step = 0.00005, value = 0;
   for (let i = 0; i < 100; i+=step) {
     value += Math.E**(-i) * i**(n-1) * step;
   }
@@ -145,7 +147,7 @@ $("#normal").update = function() {
   <td><input id="samplex2stddev"></input></tr><tr><td>n</td><td><input id="samplex1size"></input></td>
   <td><input id="samplex2size"></input></tr></tbody></table><span>Calculate
   <input id="tConfidence" placeholder="95" class="limited"></input>% confidence interval for x<sub>1</sub> - x<sub>2</sub>
-  <button id="calcTConfidence">Enter!</button><br><span id="tConfidenceOutput"></span><br><span>Calculate z and p-value for H<sub>a</sub>
+  <button id="calcTConfidence">Enter!</button><br><span id="tConfidenceOutput"></span><br><span>Calculate t and p-value for H<sub>a</sub>
   <button id="tHa" value="-1"></button> <button id="calcTHypothesis">Enter!</button><br><span id="tHaOutput"></span>`;
   function getMean() {
     return Number(div.get("#mean").value === "" ? div.get("#mean").placeholder : div.get("#mean").value);
@@ -208,7 +210,7 @@ $("#normal").update = function() {
     let isZScore = div.get("#isZScoreInverse").value === "true";
     let mean = getMean(); stddev = getStddev();
     let output = invNormalRange(percentile, percentileType, mean, stddev, isZScore);
-    let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : trunc(n).toString();
+    let stringify = n => Math.abs(n) === Infinity ? n.toString().replace("Infinity", "∞") : n.toString();
     div.get("#invnormalcdfoutput").innerText = `invNorm(${percentile}, ${div.get("#isZScoreInverse").value === "true" ? "µ: 0, σ: 1" : `µ: ${getMean()}, σ: ${getStddev()}`}, ` +
       `${{'bottom': 'LEFT', 'top': 'RIGHT', 'middle': 'CENTER'}[div.get("#percentiletype").innerText]}) = ` +
       `${percentileType === 0 ? `{${stringify(output[0])} ${stringify(output[1])}}` : stringify(output)}`;
@@ -246,7 +248,7 @@ $("#normal").update = function() {
     let zscore = invNormalRange(confidence, 0, 0, 1)[1];
     let stdError = Math.sqrt(proportions[0]*(1-proportions[0])/values[2]+proportions[1]*(1-proportions[1])/values[3]);
     div.get("#confidenceOutput").innerText = `${confidence*100}% confidence interval = ` +
-      `${trunc(mean)}±${trunc(zscore * stdError, 3)} = (${trunc(mean-zscore*stdError, 3)}, ${trunc(mean+zscore*stdError, 3)})`;
+      `${trunc(mean)}±${trunc(zscore * stdError, 4)} = (${trunc(mean-zscore*stdError, 4)}, ${trunc(mean+zscore*stdError, 4)})`;
   }
   div.get("#calcConfidence").addEventListener("click", calcConfidence);
   addEnterEvent(div.get("#confidence"), calcConfidence);
@@ -263,7 +265,7 @@ $("#normal").update = function() {
     let z = mean/Math.sqrt(pooled*(1-pooled)/values[2]+pooled*(1-pooled)/values[3]);
     let pvalue = [() => 1-normalRange(-Math.abs(z), Math.abs(z), 0, 1), () => normalRange(z, null, 0, 1), () => normalRange(null, z, 0, 1)][
       Number(div.get("#alternative").value)]();
-    div.get("#alternativeOutput").innerHTML = `z = ${trunc(z)}; p-value of ${div.get("#alternative").innerHTML} = ${trunc(pvalue)}`;
+    div.get("#alternativeOutput").innerHTML = `z = ${trunc(z)}; p-value of not ${div.get("#alternative").innerHTML} = ${trunc(pvalue)}`;
   }
   div.get("#calcHypothesis").addEventListener("click", calcHypothesis);
 
@@ -290,9 +292,9 @@ $("#normal").update = function() {
   function tCDF(start, end, df) {
     function integrate(start, end) {
       let factor = start < end ? 1 : -1;
-      let step = 0.0001, value = 0;
-      for (let i = Math.min(start, end); i < Math.max(start, end); i += step) {
-        value += tPDF(i, df) * step;
+      let step = 0.00001, value = 0;
+      for (let i = Math.min(start, end); i < Math.max(start, end)-step; i += step) {
+        value += (tPDF(i, df)+tPDF(i+step, df))/2 * step;
       }
       return value * factor;
     }
@@ -300,12 +302,12 @@ $("#normal").update = function() {
       (start === null ? 0.5 : 0) + (end === null ? 0.5 : 0);
   }
   function invT(percentile, df, position) {
-    let value = 0; i = 0, step = 0.0001;
+    let value = 0; i = 0, step = 0.000005;
     if (position === 0) percentile = 0.5+percentile/2;
     if (position === 1) percentile = 1-percentile;
     let factor = percentile < 0.5 ? -1 : 1;
     while ((percentile<0.5)?(value+0.5>percentile):(value+0.5<percentile)) {
-      value += tPDF(i, df) * step * factor;
+      value += (tPDF(i, df)+tPDF(i+step, df))/2 * step * factor;
       i += step * factor;
     }
     return i;
@@ -320,7 +322,7 @@ $("#normal").update = function() {
   function tHypothesisTest(x1, x2, haType) {
     let tScore = (x1[0]-x2[0])/Math.sqrt(x1[1]**2/x1[2]+x2[1]**2/x2[2]);
     let df = (x1[1]**2/x1[2]+x2[1]**2/x2[2])**2/((1/(x1[2]-1)*(x1[1]**2/x1[2])**2+(1/(x2[2]-1)*(x2[1]**2/x2[2])**2)));
-    return [tScore, [() => 1-tCDF(-tScore, tScore, df), () => tCDF(tScore, null, df), () => tCDF(null, tScore, df)][haType]()];
+    return [tScore, [() => 1-tCDF(-Math.abs(tScore), Math.abs(tScore), df), () => tCDF(tScore, null, df), () => tCDF(null, tScore, df)][haType]()];
   }
 
   function getTValues() {
@@ -353,7 +355,7 @@ $("#normal").update = function() {
       right = tScore(right, values[0], values[1], values[2]);
     }
     let result = tCDF(left, right, values[2]-1);
-    div.get("#tCdfOutput").innerText = `tCDF(${left === null ? "-∞" : trunc(left)}, ${right === null ? "∞" : trunc(right)}, ${values[2]-1}) = ${trunc(result, 4)}`;
+    div.get("#tCdfOutput").innerText = `tCDF(${left === null ? "-∞" : trunc(left)}, ${right === null ? "∞" : trunc(right)}, ${values[2]-1}) = ${trunc(result)}`;
   }
   addEnterEvent(div.get("#tCdfLeft"), updateTCdf);
   addEnterEvent(div.get("#tCdfRight"), updateTCdf);
@@ -377,10 +379,10 @@ $("#normal").update = function() {
       if (!isTScores) {
         result = result.map(n => invTScore(n, values[0], values[1], values[2]));
       }
-      div.get("#invTOutput").innerText = `invT(${trunc(percentile)}, ${values[2]-1}, "CENTER"${isTScores ? "" : ", values=true"}) = {${trunc(result[0], 4)}, ${trunc(result[1], 4)}}`;
+      div.get("#invTOutput").innerText = `invT(${trunc(percentile)}, ${values[2]-1}, "CENTER"${isTScores ? "" : ", values=true"}) = {${trunc(result[0])}, ${trunc(result[1])}}`;
     } else {
       div.get("#invTOutput").innerText =
-        `invT(${trunc(percentile)}, ${values[2]-1}, ${["LEFT", "CENTER", "RIGHT"][location+1]}) = ${trunc(isTScores ? result : invTScore(result, values[0], values[1], values[2]), 4)}`;
+        `invT(${trunc(percentile)}, ${values[2]-1}, ${["LEFT", "CENTER", "RIGHT"][location+1]}) = ${trunc(isTScores ? result : invTScore(result, values[0], values[1], values[2]))}`;
     }
   }
   div.get("#invTEnter").addEventListener("click", updateInvTCdf);
@@ -396,7 +398,7 @@ $("#normal").update = function() {
     let percent = Number(div.get("#tConfidence").value === "" ? div.get("#tConfidence").placeholder : div.get("#tConfidence").value)/100;
     let result = tConfidenceIntervalTwo(values[0], values[1], percent);
     div.get("#tConfidenceOutput").innerText = `${percent*100}% confidence interval = ` +
-      `${trunc(result[0])}±${trunc(result[1], 3)} = (${trunc(result[0]-result[1], 3)}, ${trunc(result[0]+result[1], 3)})`;
+      `${trunc(result[0])}±${trunc(result[1], 4)} = (${trunc(result[0]-result[1], 4)}, ${trunc(result[0]+result[1], 4)})`;
   }
   div.get("#calcTConfidence").addEventListener("click", calcTConfidence);
   addEnterEvent(div.get("#tConfidence"), calcTConfidence);
@@ -408,7 +410,7 @@ $("#normal").update = function() {
   function calcTHypothesis() {
     let values = get2TSampleValues();
     let result = tHypothesisTest(values[0], values[1], Number(div.get("#tHa").value));
-    div.get("#tHaOutput").innerHTML = `t = ${trunc(result[0], 4)}; p-value of ${div.get("#tHa").innerHTML} = ${trunc(result[1], 4)}`;
+    div.get("#tHaOutput").innerHTML = `t = ${trunc(result[0])}; p-value of not ${div.get("#tHa").innerHTML} = ${trunc(result[1])}`;
   }
   div.get("#calcTHypothesis").addEventListener("click", calcTHypothesis);
 };
@@ -751,17 +753,17 @@ $("#chisquare").update = function() {
     return x**(df/2-1) * Math.E**(-x/2) / 2**(df/2) / gamma(df/2);
   }
 
-  function chiSquareCDF(start, end, df, round=false) {
-    let value = 0, step = 0.0001;
+  function chiSquareCDF(start, end, df) {
+    let value = 0, step = 0.00001;
     if (end === null || end >= 99) value = 1-chiSquareCDF(0, start, df);
     else {
-      for (let i = Math.max(start, 0); i <= end; i += step) {
-        let pdf = chiSquarePDF(i, df);
+      for (let i = Math.max(start, 0); i <= end-step; i += step) {
+        let pdf = (chiSquarePDF(i, df)+chiSquarePDF(i+step, df))/2;
         value += step * (pdf === Infinity ? 0 : pdf);
       }
     }
     if (value <= 0) return 0;
-    return round ? trunc(value, Math.min(Math.ceil(Math.abs(Math.log10(value)))+2, 5)) : value;
+    return value;
   }
 
   function generateExpectedValues(table) {
@@ -785,7 +787,7 @@ $("#chisquare").update = function() {
       rightbound = div.get("#chiCDFrightbound").value ? Number(div.get("#chiCDFrightbound").value) : null,
       degrees = Number(div.get("#chiCDFdegrees").value || div.get("#chiCDFdegrees").placeholder);
     div.get("#chiCDFoutput").innerText =
-      `𝜒²CDF(${leftbound}, ${rightbound || "∞"}, ${degrees}) = ${chiSquareCDF(leftbound, rightbound, degrees, true)}`;
+      `𝜒²CDF(${leftbound}, ${rightbound || "∞"}, ${degrees}) = ${trunc(chiSquareCDF(leftbound, rightbound, degrees))}`;
   }
   div.get("#chiCDFenter").addEventListener("click", updateCDF);
   addEnterEvent(div.get("#chiCDFleftbound"), updateCDF);
@@ -821,7 +823,7 @@ $("#chisquare").update = function() {
     let chiSquared = chiSquareTest(rows[0], rows[1], div.get("#gofIsPercent").value === "true");
     let p = chiSquareCDF(chiSquared, Infinity, rows[0].length-1, true);
     div.get("#gofOutput1").innerText = `𝜒²: ${trunc(chiSquared)}`;
-    div.get("#gofOutput2").innerText = `p-value: ${p}`;
+    div.get("#gofOutput2").innerText = `p-value: ${trunc(p)}`;
   }
   div.get("#gofEnter").addEventListener("click", updateGoodnessofFit);
 
@@ -904,7 +906,7 @@ $("#chisquare").update = function() {
     let chiSquared = chiSquareTest(table.flat(), expectedValues.flat());
     let p = chiSquareCDF(chiSquared, null, (table.length-1)*(table[0].length-1), true);
     div.get("#indOutput1").innerText = `𝜒²: ${trunc(chiSquared)}`;
-    div.get("#indOutput2").innerText = `p-value: ${p}`;
+    div.get("#indOutput2").innerText = `p-value: ${trunc(p)}`;
   }
   function clearExpected() {
     for (let i = 0; i < indGetRows(); i++) {

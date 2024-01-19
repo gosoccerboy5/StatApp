@@ -38,7 +38,7 @@ function addStyle() {
     cursor: initial;
   }
   .previousWindow {
-    height: 68%;
+    height: calc(100% - 15px - 20px - 20px - 10px);
     margin: 10px;
     border-radius: 5px;
     background: lightgrey;
@@ -63,9 +63,10 @@ function addStyle() {
     left: 0%;
     margin: 10px;
     background: lightgrey;
-    width: 70%;
+    width: calc(100% - 42px - 10px - 10px - 10px - 10px);
   }
   .calculatorEnter {
+    width: 42px;
     position: absolute;
     bottom: 0%;
     margin: 10px;
