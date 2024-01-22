@@ -15,6 +15,8 @@ function normalRange(bottom, top, mean, stddev, zScores=true) {
     bottom = bottom === null ? null : (bottom-mean)/stddev;
     top = top === null ? null : (top-mean)/stddev;
   }
+  if (top >= 99) top = null;
+  if (bottom <= -99) bottom = null;
   function integrate(fn, bottom, top, step) {
     step = step !== undefined ? Math.max(0.0001, Math.abs(step)) : 0.001;
     let backwards = bottom > top;
@@ -33,6 +35,10 @@ function normalRange(bottom, top, mean, stddev, zScores=true) {
     [bottom, top].filter(x=>x===null).length * 0.5;
 }
 
+Math.normalcdf = function(l, h) {
+  return trunc(normalRange(l, h, 0, 1));
+};
+
 function invNormalRange(percentile, location, mean, stddev, zScore=true) {
   percentile = Math.min(Math.max(percentile, 0), 1);
   if (percentile === 1 || (percentile === 0 && location !== 0)) return location === 0 ? [-Infinity, Infinity] : (location === 1 ? -1 : 1) * (percentile === 0 ? -1 : 1) * Infinity;
@@ -45,13 +51,16 @@ function invNormalRange(percentile, location, mean, stddev, zScore=true) {
   }
 
   curr = location === 1 ? -curr : curr;
-  console.log(curr)
   if (location !== 0) {
     return trunc(zScore ? curr : curr*stddev+mean);
   } else {
     return [-Math.abs(curr), Math.abs(curr)].map(n => trunc(zScore ? n : n*stddev+mean));
   }
 }
+Math.invNorm = function(percentile) {
+  return trunc(invNormalRange(percentile, -1, 0, 1));
+}
+
 let gammaCache = Object.create(null);
 function gamma(x) { // only works on positive numbers where x is either integer or ends in .5
   if (gammaCache[x] !== undefined) return gammaCache[x];
@@ -269,18 +278,18 @@ $("#normal").update = function() {
   }
   div.get("#calcHypothesis").addEventListener("click", calcHypothesis);
 
+  let gammaPlusHalfCache = Object.create(null);
   function gammaPlusHalf(n) {
+    if (gammaPlusHalfCache[n] !== undefined) return gammaPlusHalfCache[n];
     let start = preciseGamma(n%1+1.5)/preciseGamma(n%1+1);
     for (let i = 0; i < n-n%1-1; i++) {
       start *= (n%1+1.5+i)/(n%1+1+i);
     }
+    gammaPlusHalfCache[n] = start;
     return start;
   }
   function tPDF(n, df) {
-    if (df%1 !== 0 && df % 1 !== 0.5) {
-      return gammaPlusHalf(df/2)/Math.sqrt(Math.PI*df)*(1+n**2/df)**(-(df+1)/2);
-    }
-    return preciseGamma((df+1)/2)/Math.sqrt(Math.PI*df)/preciseGamma(df/2)*(1+n**2/df)**(-(df+1)/2);
+    return gammaPlusHalf(df/2)/Math.sqrt(Math.PI*df)*(1+n**2/df)**(-(df+1)/2);
   }
   function tScore(x, mean, stddev, n) {
     if (x === null) return null;
@@ -301,6 +310,9 @@ $("#normal").update = function() {
     return integrate(start === null ? 0 : start, end === null ? 0 : end) +
       (start === null ? 0.5 : 0) + (end === null ? 0.5 : 0);
   }
+  Math.tcdf = function(l, h, df) {
+    return trunc(tCDF(l <= -99 ? null : l, h >= 99 ? null : h, df));
+  };
   function invT(percentile, df, position) {
     let value = 0; i = 0, step = 0.000005;
     if (position === 0) percentile = 0.5+percentile/2;
@@ -311,6 +323,9 @@ $("#normal").update = function() {
       i += step * factor;
     }
     return i;
+  }
+  Math.invT = function(percentile, df) {
+    return percentile >= 1 ? Infinity : trunc(invT(percentile, df, -1));
   }
   function tConfidenceInterval(mean, stddev, n, percentile) {
     return [mean, invT(percentile, n-1, 0)*stddev/Math.sqrt(n)];
@@ -656,17 +671,30 @@ $("#geometrical").update = function() {
       this.innerText = "exactly on";
     }
   });
+  function geomPdf(p, n) {
+    return p * (1-p)**(n-1);
+  }
+  Math.geometpdf = function(p, n) {
+    return geomPdf(p, n);
+  };
+  function geomCDF(p, n) {
+    let probability = 0;
+    for (let i = 0; i < n; i++) {
+      probability += p * (1-p)**(i);
+    }
+    return probability;
+  }
+  Math.geometcdf = function(p, n) {
+    return geomCDF(p, n);
+  }
   function updateGeomDF() {
     let p = getP(), trials = Number(div.get("#geomDfTrials").value || div.get("#geomDfTrials").placeholder);
     let isPdf = div.get("#geomCdfOrPdf").value === "pdf";
     let probability;
     if (isPdf) {
-      probability = p * (1-p)**(trials-1);
+      probability = geomPdf(p, trials);
     } else {
-      probability = 0;
-      for (let i = 0; i < trials; i++) {
-        probability += p * (1-p)**(i);
-      }
+      probability = geomCDF(p, n);
     }
     div.get("#geomDfOutput").innerText = `geomet${isPdf ? "P" : "C"}DF(${p}, ${trials}) = ${trunc(probability, 6)}`;
   }
@@ -690,24 +718,34 @@ $("#geometrical").update = function() {
       this.innerText = "exactly";
     }
   });
-  function updatebinomDF() {
-    function binomPdf(n, p, k) {
-      let total = 0;
-      for (let i = 1; i <= n; i++) {
-        total += (i <= k ? Math.log(p/i) : 0) + (i <= (n-k) ? Math.log((1-p)/i) : 0) + Math.log(i);
-      }
-      return Math.E**total;
+  function binomPdf(n, p, k) {
+    let total = 0;
+    for (let i = 1; i <= n; i++) {
+      total += (i <= k ? Math.log(p/i) : 0) + (i <= (n-k) ? Math.log((1-p)/i) : 0) + Math.log(i);
     }
+    return Math.E**total;
+  }
+  Math.binompdf = function(n, p, k) {
+    return binomPdf(n, p, k);
+  };
+  function binomCDF(n, p, k) {
+    let probability = 0;
+    for (let i = 0; i <= k; i++) {
+      probability += binomPdf(n, p, i);
+    }
+    return probability;
+  }
+  Math.binomcdf = function(n, p, k) {
+    return binomCDF(n, p, k);
+  };
+  function updatebinomDF() {
     let p = getBinomValues(), trials = Number(div.get("#binomDfTrials").value || div.get("#binomDfTrials").placeholder);
     let isPdf = div.get("#binomCdfOrPdf").value === "pdf";
     let probability;
     if (isPdf) {
       probability = binomPdf(p[1], p[0], trials);
     } else {
-      probability = 0;
-      for (let i = 0; i <= trials; i++) {
-        probability += binomPdf(p[1], p[0], i);
-      }
+      probability = binomCDF(p[1], p[0], trials);
     }
     div.get("#binomDfOutput").innerText = `binom${isPdf ? "P" : "C"}DF(${p[1]}, ${p[0]}, ${trials}) = ${trunc(probability, 6)}`;
   }
@@ -765,6 +803,9 @@ $("#chisquare").update = function() {
     if (value <= 0) return 0;
     return value;
   }
+  Math.chisquarecdf = function(l, h, df) {
+    return trunc(chiSquareCDF(l, h, df));
+  };
 
   function generateExpectedValues(table) {
     let expectedValues = [], columnTotals = [];
@@ -929,4 +970,9 @@ let page = new URL(window.location).searchParams.get("page");
 if (page !== null) {
   $("#widgetselect").value = page;
   updateWidgetSelect();
+}
+
+for (let widget of $("#widgetdisplay").children) {
+  widget.update();
+  widget.innerHTML = "";
 }

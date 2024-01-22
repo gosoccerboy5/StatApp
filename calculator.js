@@ -1,8 +1,12 @@
+//aside from calculating arithmetic and whatnot,
+//this can also use any builtin constants or functions on the Math object or anything that you add to Math
+
 function evaluate(string) {
   if (/^ *$/.test(string)) return null;
   let strings = [...string.matchAll(/\b[a-zA-Z]+\b/g)].map(arr => arr[0]);
-  if (strings.every(string => ["sin", "cos", "tan", "abs", "sqrt", "log", "ln", "e", "pi"].includes(string))) {
-    if (/([^0-9.\+\-\/\*\^\(\) ])/.test(string.replaceAll(/[a-zA-Z]/g, ""))) return null;
+  let allowedFunctions = Object.getOwnPropertyNames(Math);
+  if (strings.every(string => allowedFunctions.concat(["sin", "cos", "tan", "abs", "sqrt", "log", "ln", "e", "pi"]).includes(string))) {
+    if (/([^0-9,.\+\-\/\*\^\(\) ])/.test(string.replaceAll(/[a-zA-Z]/g, ""))) return null;
     string = string.replaceAll(/\b([a-zA-Z]+)\b/g, "Math.$1");
     let transforms = [["^", "**"], ["log", "log10"], ["ln", "log"], ["Math.e", "Math.E"], ["Math.pi", "Math.PI"]];
     for (let transform of transforms) {
