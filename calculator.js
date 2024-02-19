@@ -6,7 +6,7 @@ function evaluate(string) {
   let strings = [...string.matchAll(/\b[a-zA-Z]+\b/g)].map(arr => arr[0]);
   let allowedFunctions = Object.getOwnPropertyNames(Math);
   if (strings.every(string => allowedFunctions.concat(["sin", "cos", "tan", "abs", "sqrt", "log", "ln", "e", "pi"]).includes(string))) {
-    if (/([^0-9,.\+\-\/\*\^\(\) ])/.test(string.replaceAll(/[a-zA-Z]/g, ""))) return null;
+    if (/([^\[\]0-9,.\+\-\/\*\^\(\)\n ])/.test(string.replaceAll(/[a-zA-Z]/g, ""))) return null;
     string = string.replaceAll(/\b([a-zA-Z]+)\b/g, "Math.$1");
     let transforms = [["^", "**"], ["log", "log10"], ["ln", "log"], ["Math.e", "Math.E"], ["Math.pi", "Math.PI"]];
     for (let transform of transforms) {
@@ -129,7 +129,12 @@ function calculatorElement() {
       input.style.backgroundColor = "pink";
       return;
     } else {
-      answer = Math.round(answer*1e7)/1e7;
+      function truncList(list) {
+        return list.map(item => item instanceof Array ? truncList(item) : Math.round(item*1e7)/1e7).join(", ");
+      }
+      if (answer instanceof Array) {
+        answer = truncList(answer);
+      } else answer = Math.round(answer*1e7)/1e7;
     }
     let span1 = document.createElement("span");
     span1.className = "previousEntry";

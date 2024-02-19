@@ -9,6 +9,7 @@ function getValue(input) {
 HTMLDivElement.prototype.get = function(selector) {
   return this.querySelector(selector);
 };
+Math.infinity = Math.Infinity = Infinity;
 
 function normalRange(bottom, top, mean, stddev, zScores=true) {
   if (!zScores) {
@@ -72,10 +73,10 @@ function gamma(x) { // only works on positive numbers where x is either integer 
   return init;
 }
 let preciseGammaCache = Object.create(null);
-function preciseGamma(n) {
+function preciseGamma(n, precision=0.00005) {
   if (preciseGammaCache[n] !== undefined) return preciseGammaCache[n];
   if (n%1 === 0 || n%1 === 0.5) return gamma(n);
-  let step = 0.00005, value = 0;
+  let step = precision, value = 0;
   for (let i = 0; i < 100; i+=step) {
     value += Math.E**(-i) * i**(n-1) * step;
   }
@@ -84,7 +85,7 @@ function preciseGamma(n) {
 }
 
 function trunc(value, power=5) {
-  return Math.round(value * 10**power) / 10**power;
+  return value === null ? null : Math.round(value * 10**power) / 10**power;
 }
 
 let $ = document.querySelector.bind(document);
@@ -280,6 +281,7 @@ $("#normal").update = function() {
 
   let gammaPlusHalfCache = Object.create(null);
   function gammaPlusHalf(n) {
+    if (n===0.5) return 1/Math.sqrt(Math.PI);
     if (gammaPlusHalfCache[n] !== undefined) return gammaPlusHalfCache[n];
     let start = preciseGamma(n%1+1.5)/preciseGamma(n%1+1);
     for (let i = 0; i < n-n%1-1; i++) {
@@ -965,6 +967,224 @@ $("#chisquare").update = function() {
   document.activeElement.blur();
 };
 
+$("#anova").update = function() {
+  let div = this;
+  div.innerHTML = `<h2>Ƒ Distribution</h2><h3>Ƒ Cumulative Distribution Function</h3><span>Left Bound: </span>
+  <input id="fLeftBound" placeholder="0" class="limited"></input><span> Right Bound: </span>
+  <input id="fRightBound" placeholder="∞" class="limited"></input>
+  <span>Numerator df: </span><input id="df1" placeholder="2" class="limited"></span>
+  <span>Denominator df: </span><input id="df2" placeholder="2" class="limited"></span> <button id="fEnter">Enter!</button>
+  <br><span id="fCDFOutput"></span><h3>Inverse Ƒ Cumulative Distribution Function</h3><span>Percentile:</span>
+  <input id="invFPercentile" placeholder="95" class="limited"></input>% <span>Numerator df: </span>
+  <input id="invdf1" placeholder="2" class="limited"></span> <span>Denominator df: </span> 
+  <input id="invdf2" placeholder="2" class="limited"></span> <button id="invFEnter">Enter!</button><br>
+  <span id="invFOutput"></span><h2>ANOVA Test</h2><h3>ANOVA Test (Raw Data)</h3>
+  <button id="dataAddColumn">+ Dataset</button> <button id="dataMinusColumn">- Dataset</button>
+  <button id="dataAddRow">+ Data point</button> <button id="dataMinusRow">- Data point</button> 
+  <table id="anovaData"></table><span>Calculate Ƒ, numerator df, denominator df, and p-value</span>
+  <button id="dataEnter">Enter!</button><br><span id="anovaDataOutput"></span><h3>ANOVA Test (Summary Statistics)</h3>
+  <table id="anovaStats"><tr><td>x̄:</td></tr><tr><td>Sₓ:</td></tr><tr><td>n:</td></tr></table>
+  <button id="statsAddCol" class="tablebtn">+</button> <button id="statsMinusCol" class="tablebtn">-</button><br>
+  <span>Sₓ as </span><button id="sampleOrPop" value="sample">sample</button> standard deviation</span><br>
+  <span>Calculate Ƒ, numerator df, denominator df, and p-value</span>
+  <button id="statsEnter">Enter!</button><br><span id="anovaStatsOutput"></span>` 
+
+  let betaCache = [];
+  function beta(a, b) {
+    let inCache = betaCache.filter(pair => pair[0][0]===a&&pair[0][1]===b);
+    if (inCache.length > 0) return inCache[0][1];
+    let start = (a<1?preciseGamma(a):preciseGamma(a%1+1))*(b<1?preciseGamma(b):preciseGamma(b%1+1))
+      /(a+b<1?preciseGamma(a+b):preciseGamma((a+b)%1+1));
+    for (let i = 0;; i++) {
+      if (i < Math.floor(a)-1) {
+        start *= (a%1+1+i);
+      }
+      if (i < Math.floor(b)-1) {
+        start *= (b%1+1+i);
+      }
+      if (i < Math.floor(a+b)-1) {
+        start /= ((a+b)%1+1+i);
+      } else break;
+    }
+    betaCache.push([[a, b], [start]]);
+    return start;
+  }
+  function fPDF(x, d1, d2) {
+    if (d1 === undefined || d2 === undefined) return null;
+    if (x===0) return 0;
+    let ln = Math.log.bind(Math);
+    return Math.E**(
+      0.5*(d1*ln((d1*x))+d2*ln(d2)-(d1+d2)*ln((d1*x)+d2)))/
+      (x*beta(d1/2, d2/2));
+  }
+  Math.Fpdf = fPDF;
+  Math.Fpdf = fPDF;
+  function fCDF(start, end, d1, d2) {
+    if (d1 === undefined) return null;
+    if (start === null || start < 0) start = 0;
+    if (end === null || end >= 99) return 1-fCDF(0, start, d1, d2);
+    let step = 0.00001, sum = 0;
+    let last = fPDF(step, d1, d2);
+    for (let i = start; i <= end-step; i+=step) {
+      let next = fPDF(i+step, d1, d2);
+      sum += (next+last)/2 * step;
+      last = next;
+    }
+    return sum;
+  }
+  Math.Fcdf = (start, end, d1, d2) => trunc(fCDF(start, end, d1, d2), 5);
+  function invF(percentile, d1, d2) {
+    if (d1 === undefined || d2 === undefined) return null;
+    if (percentile === 1) return Infinity;
+    let sum = 0, i = 0, step = 0.00001;
+    let last = fPDF(i, d1, d2);
+    while (sum < percentile) {
+      let next = fPDF(i+step, d1, d2);
+      sum += (next+last)/2*step;
+      i += step;
+      last = next;
+    }
+    return i;
+  }
+  Math.invF = (p, d1, d2) => trunc(invF(p, d1, d2), 5);
+  function ANOVA(lists) {
+    let n = lists.reduce((a, b) => a+b.length, 0), m = lists.length;
+    let grandMean = lists.reduce((a, b) => a+b.reduce((c, d) => c+d, 0), 0)/n;
+    let TSS = lists.reduce((a, b) => a+b.reduce((c, d) => c+(d-grandMean)**2, 0), 0);
+    let means = lists.map(list => list.reduce((a, b) => a+b, 0)/list.length);
+    let WSS = lists.reduce((a, b, i) => a+b.reduce((c, d) => c+(d-means[i])**2, 0), 0);
+    let BSS = lists.reduce((a, b, i) => a + (means[i]-grandMean)**2 * b.length, 0);
+    let df1 = (m-1), df2 = n-m;
+    let fScore = BSS*df2/WSS/df1;
+    return [fScore, df1, df2, trunc(fCDF(fScore, null, df1, df2), 5)];
+  }
+  Math.ANOVA = ANOVA;
+  function summaryANOVA(lists, sampleStddev=true) {
+    let n = lists.reduce((a, b) => a+b[2], 0), m = lists.length;
+    let grandMean = lists.reduce((a, b) => a+b[2]*b[0], 0)/n;
+    let WSS = lists.reduce((a, b) => a+b[2]*b[1]**2 * (sampleStddev ? (b[2]-1)/b[2] : 1), 0);
+    let BSS = lists.reduce((a, b) => a + (b[0]-grandMean)**2 * b[2], 0);
+    let df1 = (m-1), df2 = n-m;
+    let fScore = BSS*df2/WSS/df1;
+    return [fScore, df1, df2, trunc(fCDF(fScore, null, df1, df2), 5)];
+  }
+  Math.summaryANOVA = summaryANOVA;
+
+  function updateFcdf() {
+    let leftBound = div.get("#fLeftBound").value || null, rightBound = div.get("#fRightBound").value || null,
+      df1 = div.get("#df1").value || div.get("#df1").placeholder, df2 = div.get("#df2").value || div.get("#df2").placeholder;
+    [leftBound, rightBound, df1, df2] = [leftBound, rightBound, df1, df2].map(n => n === null ? null : Number(n));
+    let value = fCDF(leftBound, rightBound, df1, df2);
+    div.get("#fCDFOutput").innerText = `ƑCDF(${leftBound || 0}, ${rightBound === null ? "∞" : rightBound}, ${df1}, ${df2}) = ${trunc(value)}`;
+  }
+  div.get("#fEnter").addEventListener("click", updateFcdf);
+  ["#fLeftBound", "#fRightBound", "#df1", "#df2"].forEach(el => addEnterEvent(div.get(el), updateFcdf));
+  function updateInvF() {
+    let percentile = Number(div.get("#invFPercentile").value || div.get("#invFPercentile").placeholder);
+    let df1 = Number(div.get("#invdf1").value || div.get("#invdf1").placeholder), 
+      df2 = Number(div.get("#invdf2").value || div.get("#invdf2").placeholder);
+    let value = invF(percentile/100, df1, df2);
+    div.get("#invFOutput").innerText = `invƑ(${percentile/100}, ${df1}, ${df2}) = ${trunc(value)}`;
+  }
+  div.get("#invFEnter").addEventListener("click", updateInvF);
+  ["#invFPercentile", "#invdf1", "#invdf2"].forEach(el => addEnterEvent(div.get(el), updateInvF));
+
+  let dataGetRows = () => div.get("#anovaData").children.length;
+  let dataGetColumns = () => div.get("#anovaData").children[0]?.children.length || 0;
+  function dataAddRow() {
+    let tr = document.createElement("tr");
+    let newCell = document.createElement("td");
+    newCell.innerHTML = "<input/>";
+    for (let i = 0; i < dataGetColumns(); i++) {
+      tr.appendChild(newCell.cloneNode(true));
+    }
+    div.get("#anovaData").appendChild(tr);
+  }
+  function dataAddColumn() {
+    let tr = document.createElement("tr");
+    let newCell = document.createElement("td");
+    newCell.innerHTML = "<input/>";
+    for (let i = 0; i < dataGetRows(); i++) {
+      div.get("#anovaData").children[i].appendChild(newCell.cloneNode(true));
+    }
+  }
+  function removeLastChild(div) {
+    if (div.children.length > 0) div.removeChild(div.children[div.children.length-1]);
+  }
+  function dataRemoveRow() {
+    if (dataGetRows() > 2) removeLastChild(div.get("#anovaData"));
+  }
+  function dataRemoveColumn() {
+    if (dataGetColumns() > 2) {
+      for (let i = 0; i < dataGetRows(); i++) {
+        removeLastChild(div.get("#anovaData").children[i]);
+      }
+    }
+  }
+  dataAddRow(); dataAddColumn(); dataAddRow(); dataAddColumn();
+  div.get("#dataAddRow").addEventListener("click", dataAddRow);
+  div.get("#dataAddColumn").addEventListener("click", dataAddColumn);
+  div.get("#dataMinusRow").addEventListener("click", dataRemoveRow);
+  div.get("#dataMinusColumn").addEventListener("click", dataRemoveColumn);
+  function gatherTableData() {
+    let lists = [];
+    for (let i = 0; i < dataGetColumns(); i++) {
+      let col = [...div.get("#anovaData").children].map(row => row.children[i]);
+      lists.push(col.map(cell => cell.children[0].value).filter(n => n !== "").map(Number));
+    }
+    return lists;
+  }
+  function updateAnovaData() {
+    let lists = gatherTableData();
+    let result = ANOVA(lists);
+    div.get("#anovaDataOutput").innerHTML = `Ƒ: ${trunc(result[0])}<br>Numerator df: ${trunc(result[1])}
+    <br>Denominator df: ${trunc(result[2])}<br>p-value: ${trunc(result[3])}`;
+  }
+  div.get("#dataEnter").addEventListener("click", updateAnovaData);
+  
+  function addColStats() {
+    for (let row of div.get("#anovaStats").children[0].children) {
+      let cell = document.createElement("td");
+      cell.innerHTML = "<input class='limited'></input>";
+      row.appendChild(cell);
+    } 
+  }
+  function removeColStats() {
+    if (div.get("#anovaStats").children[0].children[0].children.length > 2) {
+      for (let row of div.get("#anovaStats").children[0].children) {
+        row.removeChild([...row.children].at(-1));
+      }
+    }
+  }
+  div.get("#statsMinusCol").addEventListener("click", removeColStats);
+  div.get("#statsAddCol").addEventListener("click", addColStats);
+  addColStats(); addColStats();
+  function getSummaryData() {
+    let lists = [];
+    for (let i = 1; i < div.get("#anovaStats").children[0].children[0].children.length; i++) {
+      let col = [...div.get("#anovaStats").children[0].children].map(li => li.children[i]).map(cell => cell.children[0].value);
+      if (col.every(cell => cell !== "")) lists.push(col.map(Number));
+    }
+    return lists;
+  }
+  div.get("#sampleOrPop").addEventListener("click", function() {
+    this.value = this.value === "sample" ? "population" : "sample";
+    this.innerText = this.value;
+  });
+  div.get("#statsEnter").addEventListener("click", function() {
+    let summaryStats = getSummaryData();
+    console.log(summaryStats)
+    let result = summaryANOVA(summaryStats, div.get("#sampleOrPop").value === "sample");
+    div.get("#anovaStatsOutput").innerHTML = `Ƒ: ${trunc(result[0])}<br>Numerator df: ${trunc(result[1])}
+    <br>Denominator df: ${trunc(result[2])}<br>p-value: ${trunc(result[3])}`;
+  });
+};
+
+for (let widget of $("#widgetdisplay").children) {
+  widget.update();
+  widget.innerHTML = "";
+}
+
 
 let page = new URL(window.location).searchParams.get("page");
 if (page !== null) {
@@ -972,7 +1192,3 @@ if (page !== null) {
   updateWidgetSelect();
 }
 
-for (let widget of $("#widgetdisplay").children) {
-  widget.update();
-  widget.innerHTML = "";
-}
