@@ -171,9 +171,12 @@ function calculatorElement() {
     }
   });
   window.addEventListener("mousemove", function(e) {
+    function clamp(x, min, max) {
+      return Math.min(Math.max(x, min), max);
+    }
     if (grabbing) {
-      div.style.left = String(e.clientX - offset[0]) + "px";
-      div.style.top = String(e.clientY - offset[1]) + "px";
+      div.style.left = String(clamp(e.clientX - offset[0], 0, window.innerWidth-Number(getComputedStyle(div).width.replace("px", "")))) + "px";
+      div.style.top = String(clamp(e.clientY - offset[1], 0, window.innerHeight-Number(getComputedStyle(div).height.replace("px", "")))) + "px";
     }
   });
   window.addEventListener("mouseup", function() {
