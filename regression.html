@@ -1,0 +1,62 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <style>
+      #data input {
+        min-width: 50px;
+      }
+      body {
+        margin-left: 20px;
+      }
+      button:not(:disabled, .calculatorEnter, .removeCalculator):active {
+        background: rgb(100 173 100) !important;
+      }
+      p {
+        line-height: 1.5;
+      }
+      h2 {
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>StatApp: Linear Regression</h1>
+    <button id="addRow" class="tablebtn">+</button>
+    <button id="removeRow" class="tablebtn">–</button><button id="hideData" style="min-width: 45px;">Hide</button>
+    <small>Use arrow keys to navigate for a faster experience</small>
+    <table><tbody id="data"><td><input id="xName" placeholder="x" class="tablebtn"></td>
+      <td><input id="yName" placeholder="y" class="tablebtn"></td></tr></tbody></table><br>
+    <span>Confidence level: </span><input id="confidence" placeholder="95" class="limited"><span>%</span><br>
+    <span>Show...</span>
+    <input type="checkbox" id="showpoints" checked><label for="showpoints">data points?</label>
+    <input type="checkbox" id="showline" checked><label for="showline">LSRL?</label>
+    <input type="checkbox" id="showconfidence" checked><label for="showconfidence">confidence interval?</label>
+    <input type="checkbox" id="showprediction" checked><label for="showprediction">prediction interval?</label>
+    <br><button id="save">Save Data</button><button id="load">Load Data</button>
+    <button id="showcalculator">Calculator</button><button id="enter">Enter!</button><br>
+    <div id="output" style="display:none;">
+      <h2>Graph</h2>
+      <canvas id="canvas" width="750" height="450" style="width:750px;height:450px;"></canvas>
+      <h2>Summary Data</h2>
+      <p><span id="count"></span><br>
+        <span id="equation"></span><br>
+        <span id="r"></span><br>
+        <span id="r2"></span><br>
+        <span id="slopeT"></span><br>
+        <span id="slopeInterval"></span><br>
+        <span id="residuals"></span><br>
+        <span id="sResid"></span><br>
+      </p>
+      <h2>Prediction</h2>
+      <span>Estimate y for </span> x = <input id="predictX" placeholder="0" class="limited"><span></span>
+      <button id="enterPredictX">Enter!</button><br><span id="outputPredictX"></span><br>
+      <span>Inverse estimate x from </span>y = <input id="predictY" placeholder="0" class="limited"><span> (experimental)</span>
+      <button id="enterPredictY">Enter!</button><br><span id="outputPredictY"></span>
+    </div>
+    <script src="regression.js"></script>
+    <a href="./" class="footer">Home</a>
+    <script src="calculator.js"></script>
+  </body>
+</html>
