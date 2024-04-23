@@ -30,6 +30,7 @@
     <small>Use arrow keys to navigate for a faster experience</small>
     <table><tbody id="data"><td><input id="xName" placeholder="x" class="tablebtn"></td>
       <td><input id="yName" placeholder="y" class="tablebtn"></td></tr></tbody></table><br>
+    <span>Transformation on y data:</span> <input id="transformation" placeholder="y"></input><br>
     <span>Confidence level: </span><input id="confidence" placeholder="95" class="limited"><span>%</span><br>
     <span>Show...</span>
     <input type="checkbox" id="showpoints" checked><label for="showpoints">data points?</label>
@@ -40,7 +41,8 @@
     <button id="showcalculator">Calculator</button><button id="enter">Enter!</button><br>
     <div id="output" style="display:none;">
       <h2>Graph</h2>
-      <canvas id="canvas" width="750" height="450" style="width:750px;height:450px;"></canvas>
+      <canvas id="canvas" width="750" height="450" style="width:750px;height:450px;"></canvas><br>
+      <br><canvas id="residualPlot" width="750" height="450" style="width:750px;height:450px;"></canvas>
       <h2>Summary Data</h2>
       <p><span id="count"></span><br>
         <span id="equation"></span><br>
@@ -48,17 +50,16 @@
         <span id="r2"></span><br>
         <span id="slopeT"></span><br>
         <span id="slopeInterval"></span><br>
-        <span id="residuals"></span><br>
         <span id="sResid"></span><br>
       </p>
       <h2>Prediction</h2>
-      <span>Estimate y for </span> x = <input id="predictX" placeholder="0" class="limited"><span></span>
+      <span>Estimate output from </span> input = <input id="predictX" placeholder="0" class="limited"><span></span>
       <button id="enterPredictX">Enter!</button><br><span id="outputPredictX"></span><br>
-      <span>Inverse estimate x from </span>y = <input id="predictY" placeholder="0" class="limited"><span> (experimental)</span>
+      <span>Inverse estimate input from </span>output = <input id="predictY" placeholder="0" class="limited"><span> (experimental)</span>
       <button id="enterPredictY">Enter!</button><br><span id="outputPredictY"></span>
     </div>
+    <script src="calculator.js"></script>
     <script src="regression.js"></script>
     <a href="./" class="footer">Home</a>
-    <script src="calculator.js"></script>
   </body>
 </html>
