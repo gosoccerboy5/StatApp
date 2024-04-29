@@ -189,7 +189,7 @@ function regress(pairs) {
   let meanX = mgf(x, 1)/n, meanY = mgf(y, 1)/n;
   let ssX = mgf(x, 2, meanX), ssY = mgf(y, 2, meanY);
   let b = pairs.reduce((a, b) => a+(b[0]-meanX)*(b[1]-meanY), 0)/ssX;
-  let sdX = Math.sqrt(mgf(x, 2, meanX)/(n-2)), sdY = Math.sqrt(mgf(y, 2, meanY)/(n-2));
+  let sdX = Math.sqrt(mgf(x, 2, meanX)/(n-1)), sdY = Math.sqrt(mgf(y, 2, meanY)/(n-1));
   let a = meanY - b*meanX, r = b*sdX/sdY;
   function predict(x, percentile=null) {
     if (percentile === null) return a+b*x;
@@ -201,7 +201,7 @@ function regress(pairs) {
   let residuals = pairs.map(pair => pair[1]-predict(pair[0]));
   let sResid = Math.sqrt(mgf(residuals, 2)/(n-2));
 
-  let seB = sResid/Math.sqrt(n-2)/sdX;
+  let seB = sResid/Math.sqrt(n-1)/sdX;
   let tStatistic = b/seB;
 
   function inversePredict(y, percentile=null) {
@@ -212,6 +212,7 @@ function regress(pairs) {
   }
   let invResiduals = pairs.map(pair => pair[0]-inversePredict(pair[1]));
   let sInvResid = Math.sqrt(mgf(invResiduals, 2)/(n-2));
+  
   return {data: pairs, n, residuals, a, b, predict, sResid, r, tStatistic, inversePredict, meanX, meanY, sdX, sdY, ssX, ssY};
 }
 
@@ -343,7 +344,7 @@ function updatePage(output) {
   $("#equation").innerText = `${transY} = ${trunc(output.a)} ${output.b<0 ? "–" : "+"} ${trunc(Math.abs(output.b))}${xName}`;
   $("#r").innerText = `r = ${trunc(output.r)}`;
   $("#r2").innerText = `R² = ${trunc(output.r**2*100, 3)}%`;
-  $("#slopeT").innerHTML = `t<sub>b</sub> = ${trunc(output.tStatistic)}; p-value = ${trunc(2*tCDF(output.tStatistic, null, output.n-2))}`;
+  $("#slopeT").innerHTML = `t<sub>b</sub> = ${trunc(output.tStatistic)}; p-value = ${trunc(2*tCDF(Math.abs(output.tStatistic), null, output.n-2))}`;
   let error = invT(confidence, output.n-2, 0) * output.b/output.tStatistic;
   $("#slopeInterval").innerText = `${confidence*100}% CI for b: ${trunc(output.b)} ± ${trunc(error)} = (${trunc(output.b-error)}, ${trunc(output.b+error)})`;
   //$("#residuals").innerText = `Residuals: {${residuals.map(pair => pair[0] + ": " + trunc(pair[1])).join(", ")}}`;
